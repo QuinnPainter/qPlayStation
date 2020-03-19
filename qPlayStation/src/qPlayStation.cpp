@@ -1,7 +1,4 @@
-#include <iostream>
-#include <SDL.h>
-#include <GL\glew.h>
-#include <SDL_opengl.h>
+#include "qPlayStation.hpp"
 
 const int WINDOW_WIDTH = 640;
 const int WINDOW_HEIGHT = 480;
@@ -68,7 +65,7 @@ void initSDL()
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         exit(1);
     }
-    window = SDL_CreateWindow("SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+    window = SDL_CreateWindow("qPlayStation", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
     if (window == NULL)
     {
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -161,34 +158,68 @@ void initOpenGL()
     glUniformMatrix4fv(glGetUniformLocation(program, "u_projection_matrix"), 1, GL_FALSE, projection_matrix);
 }
 
+void cleanExit()
+{
+
+}
+
+// Arg 1 = BIOS path, Arg 2 = Game Path
 int main(int argc, char* args[])
 {
+    if (argc < 2)
+    {
+        logging::fatal("need BIOS path", logging::logSource::qPS);
+    }
+    /*if (argc < 3) //only need BIOS for now
+    {
+        logging::fatal("need game path", logging::logSource::qPS);
+    }*/
+
     initSDL();
     initOpenGL();
 
-    SDL_Event event;
-    bool running = true;
-    while (running)
+    bios* BIOS = new bios(args[1]);
+    memory* Memory = new memory(BIOS);
+    cpu* CPU = new cpu(Memory);
+
+    int exitCode = 0;
+
+    try
     {
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        while (SDL_PollEvent(&event))
+        SDL_Event event;
+        bool running = true;
+        while (running)
         {
-            switch (event.type)
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            while (SDL_PollEvent(&event))
             {
-            case SDL_QUIT: running = false; break;
+                switch (event.type)
+                {
+                case SDL_QUIT: running = false; break;
+                }
             }
+
+            CPU->step();
+
+            glBindVertexArray(vao);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+
+            SDL_GL_SwapWindow(window);
+            SDL_Delay(13);
         }
-
-        glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-
-        SDL_GL_SwapWindow(window);
-        SDL_Delay(13);
+    }
+    catch (int e)
+    {
+        //just continue to the cleanup
+        exitCode = 1;
     }
 
+    delete(BIOS);
+    delete(Memory);
+    delete(CPU);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return 0;
+    return exitCode;
 }
