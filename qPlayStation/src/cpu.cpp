@@ -39,7 +39,42 @@ void cpu::executeInstr(uint32_t instr)
 {
 	switch (decode_op(instr))
 	{
-		case 0x00: logging::fatal("Unimplemented instruction: Special" + helpers::intToHex(instr), logging::logSource::CPU); break;
+		case 0x00: // "Special" instructions
+		{
+			switch (decode_funct(instr))
+			{
+				case 0x00: op_sll(instr); break;
+				case 0x02: logging::fatal("Unimplemented instruction: SRL" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x03: logging::fatal("Unimplemented instruction: SRA" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x04: logging::fatal("Unimplemented instruction: SLLV" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x06: logging::fatal("Unimplemented instruction: SRLV" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x07: logging::fatal("Unimplemented instruction: SRAV" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x08: logging::fatal("Unimplemented instruction: JR" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x09: logging::fatal("Unimplemented instruction: JALR" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x0C: logging::fatal("Unimplemented instruction: SYSCALL" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x0D: logging::fatal("Unimplemented instruction: BREAK" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x10: logging::fatal("Unimplemented instruction: MFHI" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x11: logging::fatal("Unimplemented instruction: MTHI" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x12: logging::fatal("Unimplemented instruction: MFLO" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x13: logging::fatal("Unimplemented instruction: MTLO" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x18: logging::fatal("Unimplemented instruction: MULT" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x19: logging::fatal("Unimplemented instruction: MULTU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x1A: logging::fatal("Unimplemented instruction: DIV" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x1B: logging::fatal("Unimplemented instruction: DIVU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x20: logging::fatal("Unimplemented instruction: ADD" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x21: logging::fatal("Unimplemented instruction: ADDU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x22: logging::fatal("Unimplemented instruction: SUB" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x23: logging::fatal("Unimplemented instruction: SUBU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x24: logging::fatal("Unimplemented instruction: AND" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x25: logging::fatal("Unimplemented instruction: OR" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x26: logging::fatal("Unimplemented instruction: XOR" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x27: logging::fatal("Unimplemented instruction: NOR" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x2A: logging::fatal("Unimplemented instruction: SLT" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x2B: logging::fatal("Unimplemented instruction: SLTU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				default: logging::fatal("Invalid instruction: " + helpers::intToHex(instr), logging::logSource::CPU); break;
+			}
+			break;
+		}
 		case 0x01: logging::fatal("Unimplemented instruction: BcondZ" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x02: logging::fatal("Unimplemented instruction: J" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x03: logging::fatal("Unimplemented instruction: JAL" + helpers::intToHex(instr), logging::logSource::CPU); break;
@@ -48,7 +83,7 @@ void cpu::executeInstr(uint32_t instr)
 		case 0x06: logging::fatal("Unimplemented instruction: BLEZ" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x07: logging::fatal("Unimplemented instruction: BGTZ" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x08: logging::fatal("Unimplemented instruction: ADDI" + helpers::intToHex(instr), logging::logSource::CPU); break;
-		case 0x09: logging::fatal("Unimplemented instruction: ADDIU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+		case 0x09: op_addiu(instr); break;
 		case 0x0A: logging::fatal("Unimplemented instruction: SLTI" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x0B: logging::fatal("Unimplemented instruction: SLTIU" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x0C: logging::fatal("Unimplemented instruction: ANDI" + helpers::intToHex(instr), logging::logSource::CPU); break;
@@ -69,7 +104,7 @@ void cpu::executeInstr(uint32_t instr)
 		case 0x28: logging::fatal("Unimplemented instruction: SB" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x29: logging::fatal("Unimplemented instruction: SH" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x2A: logging::fatal("Unimplemented instruction: SWL" + helpers::intToHex(instr), logging::logSource::CPU); break;
-		case 0x2B: logging::fatal("Unimplemented instruction: SW" + helpers::intToHex(instr), logging::logSource::CPU); break;
+		case 0x2B: op_sw(instr); break;
 		case 0x2E: logging::fatal("Unimplemented instruction: SWR" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x30: logging::fatal("Unimplemented instruction: LWC0" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x31: logging::fatal("Unimplemented instruction: LWC1" + helpers::intToHex(instr), logging::logSource::CPU); break;
@@ -107,10 +142,10 @@ uint8_t cpu::decode_rd(uint32_t instr) // Destination Register
 
 uint16_t cpu::decode_imm(uint32_t instr) // Immediate Value
 {
-	return instr & 0xFF;
+	return instr & 0xFFFF;
 }
 
-uint8_t cpu::decode_shamt(uint32_t instr) // Shamt (??)
+uint8_t cpu::decode_shamt(uint32_t instr) // Shamt (used for shifts)
 {
 	return (instr >> 6) & 0x1F;
 }
@@ -138,4 +173,22 @@ void cpu::op_ori(uint32_t instr) // Or Immediate
 	// Set lower 16 bits of a reg to another reg bitwise OR an immediate value
 	uint32_t output = getReg(decode_rs(instr)) | decode_imm(instr);
 	setReg(decode_rt(instr), output);
+}
+
+void cpu::op_sw(uint32_t instr) // Store Word
+{
+	uint32_t addr = getReg(decode_rs(instr)) + (int16_t)decode_imm(instr);
+	Memory->set32(addr, getReg(decode_rt(instr)));
+}
+
+void cpu::op_sll(uint32_t instr) // Shift Left Logical
+{
+	setReg(decode_rd(instr), getReg(decode_rt(instr)) << decode_shamt(instr));
+}
+
+void cpu::op_addiu(uint32_t instr) // Add Immediate Unsigned
+{
+	// The name of this opcode is a lie. The immediate value is treated as signed.
+	// Only difference between this and ADDI is that ADDIU doesn't generate exception on overflow.
+	setReg(decode_rt(instr), getReg(decode_rs(instr)) + (int16_t)decode_imm(instr));
 }

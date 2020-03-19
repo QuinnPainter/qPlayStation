@@ -31,4 +31,7 @@ class cpu
 		// Instructions
 		void op_lui(uint32_t instr);
 		void op_ori(uint32_t instr);
+		void op_sw(uint32_t instr);
+		void op_sll(uint32_t instr);
+		void op_addiu(uint32_t instr);
 };
