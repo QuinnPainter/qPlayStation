@@ -39,4 +39,23 @@ class helpers
 			T m = 1 << (bits - 1);
 			return (x ^ m) - m;
 		}
+
+		//https://stackoverflow.com/questions/199333/how-do-i-detect-unsigned-integer-multiply-overflow
+		//Checks if adding these 2 32 bit signed ints will cause overflow (or underflow)
+		static bool checkAddOverflow(int32_t a, int32_t b)
+		{
+			bool overflow = false;
+			if ((b > 0) && (a > INT32_MAX - b)) { overflow = true; } // Overflow
+			if ((b < 0) && (a < INT32_MIN - b)) { overflow = true; } // Underflow
+			return overflow;
+		}
+
+		//Checks if subtracting B from A will cause overflow (or underflow)
+		static bool checkSubtractOverflow(int32_t a, int32_t b)
+		{
+			bool overflow = false;
+			if ((b < 0) && (a > INT32_MAX + b)) { overflow = true; } // Overflow
+			if ((b > 0) && (a < INT32_MIN + b)) { overflow = true; } // Underflow
+			return overflow;
+		}
 };

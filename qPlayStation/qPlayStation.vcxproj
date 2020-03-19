@@ -166,6 +166,7 @@
     <ClInclude Include="src\memory.hpp" />
     <ClInclude Include="src\peripheral.hpp" />
     <ClInclude Include="src\qPlayStation.hpp" />
+    <ClInclude Include="src\ram.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\bios.cpp" />
@@ -173,6 +174,7 @@
     <ClCompile Include="src\logging.cpp" />
     <ClCompile Include="src\memory.cpp" />
     <ClCompile Include="src\qPlayStation.cpp" />
+    <ClCompile Include="src\ram.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -200,7 +200,12 @@ int main(int argc, char* args[])
                 }
             }
 
-            CPU->step();
+            // This loop is 60FPS, and the PS CPU runs at approx 30 MIPS
+            // So it should run 0.5 Million Instructions per frame (500,000)
+            for (uint32_t i = 0; i < 500000; i++)
+            {
+                CPU->step();
+            }
 
             glBindVertexArray(vao);
             glDrawArrays(GL_TRIANGLES, 0, 3);

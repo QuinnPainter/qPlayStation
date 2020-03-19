@@ -36,3 +36,23 @@ uint32_t bios::get32(uint32_t addr)
 {
     return biosData[addr] | (biosData[addr + 1] << 8) | (biosData[addr + 2] << 16) | (biosData[addr + 3] << 24);
 }
+
+void bios::set16(uint32_t addr, uint16_t value)
+{
+    logging::fatal("attempted to set BIOS");
+}
+
+uint16_t bios::get16(uint32_t addr) 
+{
+    return biosData[addr] | (biosData[addr + 1] << 8);
+}
+
+void bios::set8(uint32_t addr, uint8_t value)
+{
+    logging::fatal("attempted to set BIOS");
+}
+
+uint8_t bios::get8(uint32_t addr)
+{
+    return biosData[addr];
+}
