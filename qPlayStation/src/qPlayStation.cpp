@@ -158,11 +158,6 @@ void initOpenGL()
     glUniformMatrix4fv(glGetUniformLocation(program, "u_projection_matrix"), 1, GL_FALSE, projection_matrix);
 }
 
-void cleanExit()
-{
-
-}
-
 // Arg 1 = BIOS path, Arg 2 = Game Path
 int main(int argc, char* args[])
 {

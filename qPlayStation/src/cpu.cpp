@@ -16,6 +16,7 @@ void cpu::reset()
 	}
 	hi = 0;
 	lo = 0;
+	cop0_sr = 0;
 	currentLoad = {0, 0};
 	next_instr = 0;
 }
@@ -31,6 +32,11 @@ uint32_t cpu::getReg(int index)
 	return in_regs[index];
 }
 
+bool cpu::cacheIsolated()
+{
+	return (cop0_sr & 0x10000);
+}
+
 void cpu::step()
 {
 	setReg(currentLoad.regIndex, currentLoad.value);
@@ -40,6 +46,8 @@ void cpu::step()
 	next_instr = Memory->get32(pc);
 	pc += 4;
 	executeInstr(instr);
+
+	//std::cout << "Execute " + helpers::intToHex(instr) << "\n";
 
 	memcpy(in_regs, out_regs, sizeof(in_regs));
 }
@@ -53,48 +61,48 @@ void cpu::executeInstr(uint32_t instr)
 			switch (decode_funct(instr))
 			{
 				case 0x00: op_sll(instr); break;
-				case 0x02: logging::fatal("Unimplemented instruction: SRL" + helpers::intToHex(instr), logging::logSource::CPU); break;
-				case 0x03: logging::fatal("Unimplemented instruction: SRA" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x02: op_srl(instr); break;
+				case 0x03: op_sra(instr); break;
 				case 0x04: logging::fatal("Unimplemented instruction: SLLV" + helpers::intToHex(instr), logging::logSource::CPU); break;
 				case 0x06: logging::fatal("Unimplemented instruction: SRLV" + helpers::intToHex(instr), logging::logSource::CPU); break;
 				case 0x07: logging::fatal("Unimplemented instruction: SRAV" + helpers::intToHex(instr), logging::logSource::CPU); break;
 				case 0x08: op_jr(instr); break;
-				case 0x09: logging::fatal("Unimplemented instruction: JALR" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x09: op_jalr(instr); break;
 				case 0x0C: logging::fatal("Unimplemented instruction: SYSCALL" + helpers::intToHex(instr), logging::logSource::CPU); break;
 				case 0x0D: logging::fatal("Unimplemented instruction: BREAK" + helpers::intToHex(instr), logging::logSource::CPU); break;
-				case 0x10: logging::fatal("Unimplemented instruction: MFHI" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x10: op_mfhi(instr); break;
 				case 0x11: logging::fatal("Unimplemented instruction: MTHI" + helpers::intToHex(instr), logging::logSource::CPU); break;
-				case 0x12: logging::fatal("Unimplemented instruction: MFLO" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x12: op_mflo(instr); break;
 				case 0x13: logging::fatal("Unimplemented instruction: MTLO" + helpers::intToHex(instr), logging::logSource::CPU); break;
 				case 0x18: logging::fatal("Unimplemented instruction: MULT" + helpers::intToHex(instr), logging::logSource::CPU); break;
 				case 0x19: logging::fatal("Unimplemented instruction: MULTU" + helpers::intToHex(instr), logging::logSource::CPU); break;
-				case 0x1A: logging::fatal("Unimplemented instruction: DIV" + helpers::intToHex(instr), logging::logSource::CPU); break;
-				case 0x1B: logging::fatal("Unimplemented instruction: DIVU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x1A: op_div(instr); break;
+				case 0x1B: op_divu(instr); break;
 				case 0x20: op_add(instr); break;
 				case 0x21: op_addu(instr); break;
 				case 0x22: logging::fatal("Unimplemented instruction: SUB" + helpers::intToHex(instr), logging::logSource::CPU); break;
-				case 0x23: logging::fatal("Unimplemented instruction: SUBU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x23: op_subu(instr); break;
 				case 0x24: op_and(instr); break;
 				case 0x25: op_or(instr); break;
 				case 0x26: logging::fatal("Unimplemented instruction: XOR" + helpers::intToHex(instr), logging::logSource::CPU); break;
 				case 0x27: logging::fatal("Unimplemented instruction: NOR" + helpers::intToHex(instr), logging::logSource::CPU); break;
-				case 0x2A: logging::fatal("Unimplemented instruction: SLT" + helpers::intToHex(instr), logging::logSource::CPU); break;
+				case 0x2A: op_slt(instr); break;
 				case 0x2B: op_sltu(instr); break;
 				default: logging::fatal("Invalid instruction: " + helpers::intToHex(instr), logging::logSource::CPU); break;
 			}
 			break;
 		}
-		case 0x01: logging::fatal("Unimplemented instruction: BcondZ" + helpers::intToHex(instr), logging::logSource::CPU); break;
+		case 0x01: op_bcondz(instr); break;
 		case 0x02: op_j(instr); break;
 		case 0x03: op_jal(instr); break;
 		case 0x04: op_beq(instr); break;
 		case 0x05: op_bne(instr); break;
-		case 0x06: logging::fatal("Unimplemented instruction: BLEZ" + helpers::intToHex(instr), logging::logSource::CPU); break;
-		case 0x07: logging::fatal("Unimplemented instruction: BGTZ" + helpers::intToHex(instr), logging::logSource::CPU); break;
+		case 0x06: op_blez(instr); break;
+		case 0x07: op_bgtz(instr); break;
 		case 0x08: op_addi(instr); break;
 		case 0x09: op_addiu(instr); break;
-		case 0x0A: logging::fatal("Unimplemented instruction: SLTI" + helpers::intToHex(instr), logging::logSource::CPU); break;
-		case 0x0B: logging::fatal("Unimplemented instruction: SLTIU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+		case 0x0A: op_slti(instr); break;
+		case 0x0B: op_sltiu(instr); break;
 		case 0x0C: op_andi(instr); break;
 		case 0x0D: op_ori(instr); break;
 		case 0x0E: logging::fatal("Unimplemented instruction: XORI" + helpers::intToHex(instr), logging::logSource::CPU); break;
@@ -107,7 +115,7 @@ void cpu::executeInstr(uint32_t instr)
 		case 0x21: logging::fatal("Unimplemented instruction: LH" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x22: logging::fatal("Unimplemented instruction: LWL" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x23: op_lw(instr); break;
-		case 0x24: logging::fatal("Unimplemented instruction: LBU" + helpers::intToHex(instr), logging::logSource::CPU); break;
+		case 0x24: op_lbu(instr); break;
 		case 0x25: logging::fatal("Unimplemented instruction: LHU" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x26: logging::fatal("Unimplemented instruction: LWR" + helpers::intToHex(instr), logging::logSource::CPU); break;
 		case 0x28: op_sb(instr); break;
@@ -203,15 +211,19 @@ void cpu::op_andi(uint32_t instr) // And Immediate
 	setReg(decode_rt(instr), output);
 }
 
-void cpu::op_sw(uint32_t instr) // Store Word
-{
-	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
-	Memory->set32(addr, getReg(decode_rt(instr)));
-}
-
 void cpu::op_sll(uint32_t instr) // Shift Left Logical
 {
 	setReg(decode_rd(instr), getReg(decode_rt(instr)) << decode_shamt(instr));
+}
+
+void cpu::op_srl(uint32_t instr) // Shift Right Logical
+{
+	setReg(decode_rd(instr), getReg(decode_rt(instr)) >> decode_shamt(instr));
+}
+
+void cpu::op_sra(uint32_t instr) // Shift Right Arithmetic
+{
+	setReg(decode_rd(instr), ((int32_t)getReg(decode_rt(instr))) >> decode_shamt(instr));
 }
 
 void cpu::op_addi(uint32_t instr) // Add Immediate Signed
@@ -255,7 +267,45 @@ void cpu::op_and(uint32_t instr) // Bitwise And
 
 void cpu::op_cop0(uint32_t instr) // Coprocessor 0 Operation
 {
-	logging::important("Unimplemented Coprocessor 0 opcode: " + helpers::intToHex(instr), logging::logSource::CPU);
+	switch (decode_rs(instr))
+	{
+		case 0b00000: // MFC - Move from Coprocessor
+		{
+			uint32_t outputValue = 0;
+			switch (decode_rd(instr))
+			{
+				case 12: outputValue = cop0_sr; break;
+				default: logging::fatal("Read from unhandled COP0 register: " + std::to_string(decode_rd(instr)), logging::logSource::CPU); break;
+			}
+			currentLoad = {decode_rt(instr), outputValue};
+			//std::cout << "Read " << helpers::intToHex(outputValue) << " from COP0" << "\n";
+			break;
+		}
+		case 0b00100: // MTC - Move to Coprocessor
+		{
+			uint32_t value = getReg(decode_rt(instr));
+			switch (decode_rd(instr))
+			{
+				case 12: cop0_sr = value; break;
+				default: logging::info("Write to unhandled COP0 register: " + std::to_string(decode_rd(instr)), logging::logSource::CPU); break;
+			}
+			//std::cout << "Write " << helpers::intToHex(value) << " to " << std::to_string(decode_rd(instr)) << "\n";
+			break;
+		}
+		case 0b10000:
+		{
+			if (decode_funct(instr) == 0b010000)
+			{
+				logging::fatal("Unimplemented COP0 instruction: RFE - Return from Exception" + helpers::intToHex(instr), logging::logSource::CPU); break;
+			}
+			else
+			{
+				logging::fatal("Unimplemented COP0 instruction: " + helpers::intToHex(instr), logging::logSource::CPU); break;
+			}
+			break;
+		}
+		default: logging::fatal("Unimplemented COP0 instruction: " + helpers::intToHex(instr), logging::logSource::CPU); break;
+	}
 }
 
 void cpu::op_bne(uint32_t instr) // Branch if Not Equal
@@ -274,10 +324,51 @@ void cpu::op_beq(uint32_t instr) // Branch if Equal
 	}
 }
 
+void cpu::op_bgtz(uint32_t instr) // Branch if Greater than Zero
+{
+	if (((int32_t)getReg(decode_rs(instr))) > 0)
+	{
+		branch(decode_imm_se(instr));
+	}
+}
+
+void cpu::op_blez(uint32_t instr) // Branch if Less than or Equal to Zero
+{
+	if (((int32_t)getReg(decode_rs(instr))) <= 0)
+	{
+		branch(decode_imm_se(instr));
+	}
+}
+
+void cpu::op_bcondz(uint32_t instr) // BLTZ / BLTZAL / BGEZ / BGEZAL
+{
+	// Branch Less than Zero, Branch Less than Zero and Link,
+	// Branch Greater than or Equal to Zero, Branch Greater than or Equal to Zero and Link
+	bool link = (decode_rt(instr) & 0b11110) == 0b10000; // True - AL, False - No AL
+	bool bgez = decode_rt(instr) & 0b00001; // True - BGEZ, False - BLTZ
+
+	bool test = ((int32_t)getReg(decode_rs(instr))) < 0;
+	if (bgez) { test = !test; }
+
+	if (link)
+	{
+		setReg(31, pc);
+	}
+	if (test)
+	{
+		branch(decode_imm_se(instr));
+	}
+}
+
 void cpu::op_lw(uint32_t instr) // Load Word
 {
 	uint32_t value = Memory->get32(getReg(decode_rs(instr)) + decode_imm_se(instr));
 	currentLoad = {decode_rt(instr), value};
+}
+
+void cpu::op_slt(uint32_t instr) // Set on Less Than
+{
+	setReg(decode_rd(instr), ((int32_t)getReg(decode_rs(instr))) < ((int32_t)getReg(decode_rt(instr))));
 }
 
 void cpu::op_sltu(uint32_t instr) // Set on Less Than Unsigned
@@ -301,14 +392,31 @@ void cpu::op_add(uint32_t instr) // Add
 	setReg(decode_rd(instr), a + b);
 }
 
+void cpu::op_subu(uint32_t instr) // Subtract Unsigned
+{
+	setReg(decode_rd(instr), getReg(decode_rs(instr)) - getReg(decode_rt(instr)));
+}
+
+void cpu::op_sw(uint32_t instr) // Store Word
+{
+	if (cacheIsolated()) { return; }
+
+	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
+	Memory->set32(addr, getReg(decode_rt(instr)));
+}
+
 void cpu::op_sh(uint32_t instr) // Store Halfword
 {
+	if (cacheIsolated()) { return; }
+
 	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
 	Memory->set16(addr, getReg(decode_rt(instr)));
 }
 
 void cpu::op_sb(uint32_t instr) // Store Byte
 {
+	if (cacheIsolated()) { return; }
+
 	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
 	Memory->set8(addr, getReg(decode_rt(instr)));
 }
@@ -318,9 +426,81 @@ void cpu::op_jr(uint32_t instr) // Jump Register
 	pc = getReg(decode_rs(instr));
 }
 
+void cpu::op_jalr(uint32_t instr) // Jump and Link Register
+{
+	setReg(decode_rd(instr), pc);
+	pc = getReg(decode_rs(instr));
+}
+
 void cpu::op_lb(uint32_t instr) // Load Byte
 {
 	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
 	int8_t val = Memory->get8(addr);
 	currentLoad = {decode_rt(instr), (uint32_t)val};
+}
+
+void cpu::op_lbu(uint32_t instr) // Load Byte Unsigned
+{
+	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
+	currentLoad = {decode_rt(instr), Memory->get8(addr)};
+}
+
+void cpu::op_slti(uint32_t instr) // Set if Less Than Immediate
+{
+	setReg(decode_rt(instr), ((int32_t)getReg(decode_rs(instr))) < ((int32_t)decode_imm_se(instr)));
+}
+
+void cpu::op_sltiu(uint32_t instr) // Set if Less Than Immediate Unsigned
+{
+	setReg(decode_rt(instr), getReg(decode_rs(instr)) < decode_imm_se(instr));
+}
+
+void cpu::op_div(uint32_t instr) // Divide
+{
+	int32_t numerator = getReg(decode_rs(instr));
+	int32_t denominator = getReg(decode_rt(instr));
+
+	if (denominator == 0) // Special case 1 - Division by 0
+	{
+		hi = numerator;
+		lo = (numerator >= 0) ? 0xFFFFFFFF : 1;
+	}
+	else if (((uint32_t)numerator) == 0x80000000 && denominator == -1)
+	{
+		// Special case 2 - Result doesn't fit in 32 bit int
+		hi = 0;
+		lo = 0x80000000;
+	}
+	else
+	{
+		hi = numerator % denominator;
+		lo = numerator / denominator;
+	}
+}
+
+void cpu::op_divu(uint32_t instr) // Divide Unsigned
+{
+	uint32_t numerator = getReg(decode_rs(instr));
+	uint32_t denominator = getReg(decode_rt(instr));
+
+	if (denominator == 0) // Special case - Division by 0
+	{
+		hi = numerator;
+		lo = 0xFFFFFFFF;
+	}
+	else
+	{
+		hi = numerator % denominator;
+		lo = numerator / denominator;
+	}
+}
+
+void cpu::op_mflo(uint32_t instr) // Move from Lo
+{
+	setReg(decode_rd(instr), lo);
+}
+
+void cpu::op_mfhi(uint32_t instr) // Move from Hi
+{
+	setReg(decode_rd(instr), hi);
 }
