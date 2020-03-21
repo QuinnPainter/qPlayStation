@@ -58,4 +58,16 @@ class helpers
 			if ((b > 0) && (a < INT32_MIN + b)) { overflow = true; } // Underflow
 			return overflow;
 		}
+
+		//Checks if a 32 bit address is 32 bit aligned
+		static bool is32BitAligned(uint32_t a)
+		{
+			return (a & 0x3) == 0;
+		}
+
+		//Checks if a 32 bit address is 16 bit aligned
+		static bool is16BitAligned(uint32_t a)
+		{
+			return (a & 0x1) == 0;
+		}
 };

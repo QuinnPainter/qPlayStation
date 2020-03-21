@@ -15,7 +15,7 @@ memory::~memory()
 
 void memory::set32(uint32_t addr, uint32_t value)
 {
-	if ((addr & 0x3) != 0)
+	if (!helpers::is32BitAligned(addr))
 	{
 		logging::fatal("Misaligned 32-bit store address", logging::logSource::memory);
 	}
@@ -26,7 +26,7 @@ void memory::set32(uint32_t addr, uint32_t value)
 
 uint32_t memory::get32(uint32_t addr)
 {
-	if ((addr & 0x3) != 0)
+	if (!helpers::is32BitAligned(addr))
 	{
 		logging::fatal("Misaligned 32-bit load address", logging::logSource::memory);
 	}
@@ -37,7 +37,7 @@ uint32_t memory::get32(uint32_t addr)
 
 void memory::set16(uint32_t addr, uint16_t value)
 {
-	if ((addr & 0x1) != 0)
+	if (!helpers::is16BitAligned(addr))
 	{
 		logging::fatal("Misaligned 16-bit store address", logging::logSource::memory);
 	}
@@ -48,7 +48,7 @@ void memory::set16(uint32_t addr, uint16_t value)
 
 uint16_t memory::get16(uint32_t addr)
 {
-	if ((addr & 0x1) != 0)
+	if (!helpers::is16BitAligned(addr))
 	{
 		logging::fatal("Misaligned 16-bit load address", logging::logSource::memory);
 	}
@@ -86,7 +86,7 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 	else if (adjAddr >= 0x1F801000 && adjAddr < 0x1F803000)
 	{
 		// IO / Expansion Area
-		logging::info("IO Access: " + helpers::intToHex(addr), logging::logSource::memory);
+		//logging::info("IO Access: " + helpers::intToHex(addr), logging::logSource::memory);
 		return {pStub, 0};
 	}
 	else if (addr == 0xFFFE0130)
