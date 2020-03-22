@@ -2,6 +2,8 @@
 #include "helpers.hpp"
 #include "bios.hpp"
 #include "ram.hpp"
+#include "dma.hpp"
+#include "gpu.hpp"
 
 struct PeriphRequestInfo
 {
@@ -12,7 +14,7 @@ struct PeriphRequestInfo
 class memory
 {
 	public:
-		memory(bios* b);
+		memory(bios* b, gpu* g);
 		~memory();
 		void set32(uint32_t addr, uint32_t value);
 		uint32_t get32(uint32_t addr);
@@ -21,8 +23,10 @@ class memory
 		void set8(uint32_t addr, uint8_t value);
 		uint8_t get8(uint32_t addr);
 	private:
-		bios* BIOS = nullptr;
-		ram* RAM = nullptr;
-		peripheralStub* pStub = nullptr;
+		bios* BIOS;
+		ram* RAM;
+		dma* DMA;
+		gpu* GPU;
+		peripheralStub* pStub;
 		PeriphRequestInfo getPeriphAtAddress(uint32_t addr);
 };

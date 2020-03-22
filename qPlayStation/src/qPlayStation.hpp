@@ -3,3 +3,4 @@
 #include "cpu.hpp"
 #include "memory.hpp"
 #include "bios.hpp"
+#include "gpu.hpp"

@@ -101,7 +101,7 @@ void cpu::executeInstr(uint32_t instr)
 				case 0x27: op_nor(instr); break;
 				case 0x2A: op_slt(instr); break;
 				case 0x2B: op_sltu(instr); break;
-				default: logging::fatal("Invalid instruction: " + helpers::intToHex(instr), logging::logSource::CPU); break;
+				default: op_illegal(instr); break;
 			}
 			break;
 		}
@@ -144,7 +144,7 @@ void cpu::executeInstr(uint32_t instr)
 		case 0x39: op_swc1(instr); break;
 		case 0x3A: op_swc2(instr); break;
 		case 0x3B: op_swc3(instr); break;
-		default: logging::fatal("Invalid instruction: " + helpers::intToHex(instr), logging::logSource::CPU); break;
+		default: op_illegal(instr); break;
 	}
 }
 
@@ -812,4 +812,10 @@ void cpu::op_syscall(uint32_t instr) // System Call
 void cpu::op_break(uint32_t instr) // Break
 {
 	exception(psException::Breakpoint);
+}
+
+void cpu::op_illegal(uint32_t instr) // Illegal instruction
+{
+	logging::warning("Illegal instruction: " + helpers::intToHex(instr), logging::logSource::CPU);
+	exception(psException::ReservedInstr);
 }

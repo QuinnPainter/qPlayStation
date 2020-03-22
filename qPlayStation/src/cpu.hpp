@@ -130,4 +130,5 @@ class cpu
 		void op_mthi(uint32_t instr);
 		void op_syscall(uint32_t instr);
 		void op_break(uint32_t instr);
+		void op_illegal(uint32_t instr);
 };

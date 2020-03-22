@@ -174,7 +174,8 @@ int main(int argc, char* args[])
     initOpenGL();
 
     bios* BIOS = new bios(args[1]);
-    memory* Memory = new memory(BIOS);
+    gpu* GPU = new gpu();
+    memory* Memory = new memory(BIOS, GPU);
     cpu* CPU = new cpu(Memory);
 
     int exitCode = 0;
