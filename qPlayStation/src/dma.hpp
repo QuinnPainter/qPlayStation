@@ -2,6 +2,7 @@
 #include "helpers.hpp"
 #include "peripheral.hpp"
 #include "ram.hpp"
+#include "gpu.hpp"
 
 class dmaChannel
 {
@@ -32,7 +33,7 @@ class dmaChannel
 class dma : public peripheral
 {
 	public:
-		dma(ram* r);
+		dma(ram* r, gpu* g);
 		~dma();
 		void reset();
 		void set32(uint32_t addr, uint32_t value);
@@ -43,6 +44,7 @@ class dma : public peripheral
 		uint8_t get8(uint32_t addr);
 	private:
 		ram* RAM;
+		gpu* GPU;
 
 		dmaChannel* channels[7];
 		uint32_t control;

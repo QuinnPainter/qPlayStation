@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <list>
 #include <SDL.h>
 #include <GL\glew.h>
 #include <SDL_opengl.h>

@@ -5,7 +5,7 @@ memory::memory(bios* b, gpu* g)
 	BIOS = b;
 	GPU = g;
 	RAM = new ram();
-	DMA = new dma(RAM);
+	DMA = new dma(RAM, GPU);
 	pStub = new peripheralStub();
 }
 

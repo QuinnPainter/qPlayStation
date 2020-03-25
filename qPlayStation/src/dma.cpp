@@ -1,8 +1,9 @@
 #include "dma.hpp"
 
-dma::dma(ram* r)
+dma::dma(ram* r, gpu* g)
 {
 	RAM = r;
+	GPU = g;
 	for (int i = 0; i < 7; i++)
 	{
 		channels[i] = new dmaChannel();
@@ -157,7 +158,7 @@ void dma::doDMA(uint8_t port)
 			while (numWords > 0)
 			{
 				currentAddr = (currentAddr + 4) & 0x1FFFFC;
-				std::cout << "DMA'd GPU command: " << helpers::intToHex(RAM->get32(currentAddr)) << "\n";
+				GPU->set32(0, RAM->get32(currentAddr));
 				numWords--;
 			}
 
@@ -191,7 +192,7 @@ void dma::doDMA(uint8_t port)
 				{
 					case static_cast<uint8_t>(dmaPort::GPU):
 					{
-						std::cout << "DMA'd (block) GPU command: " << helpers::intToHex(srcWord) << "\n";
+						GPU->set32(0, srcWord);
 						break;
 					}
 					default: logging::fatal("unhandled DMA (RAM to Device) port: " + std::to_string(port), logging::logSource::DMA);
