@@ -3,6 +3,17 @@
 gpu::gpu(SDL_Window* window)
 {
 	sdlWindow = window;
+	vram = new uint8_t[2048 * 512];
+	glBuffer = new uint8_t[2048 * 512];
+	memset(vram, 0, 2048 * 512);
+
+	sdlRenderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED/* | SDL_RENDERER_PRESENTVSYNC*/);
+	if (sdlRenderer == NULL)
+	{
+		logging::fatal("Renderer could not be created! SDL_Error: " + std::string(SDL_GetError()), logging::logSource::GPU);
+	}
+	screenTexture = SDL_CreateTexture(sdlRenderer, SDL_PIXELFORMAT_ARGB1555, SDL_TEXTUREACCESS_STREAMING, 1024, 512);
+
 	initOpenGL();
 	reset();
 }
@@ -14,6 +25,7 @@ gpu::~gpu()
 	glDeleteShader(fragmentShader);
 	glDeleteProgram(program);
 	SDL_GL_DeleteContext(glContext);
+	delete[] vram;
 }
 
 void gpu::reset()
@@ -88,6 +100,33 @@ void gpu::set32(uint32_t addr, uint32_t value)
 				case GP0Mode::CopyCPUtoVRAM:
 				{
 					// once vram exists, this should copy data into it
+					uint32_t destCoord = gp0commandBuffer[1];
+					uint16_t destX = destCoord & 0xFFFF;
+					uint16_t destY = destCoord >> 16;
+					uint32_t widthheight = gp0commandBuffer[2];
+					uint16_t width = widthheight & 0xFFFF;
+					uint16_t height = widthheight >> 16;
+
+					uint32_t destAddr = (vramTransferCurrentY * 2048) + (vramTransferCurrentX * 2);
+					vramSet16(destAddr, value & 0xFFFF);
+					vramTransferCurrentX++;
+					if (vramTransferCurrentX >= ((uint32_t)destX) + width)
+					{
+						vramTransferCurrentX = destX;
+						vramTransferCurrentY++;
+					}
+
+					if (!((((widthheight & 0xFFFF) * (widthheight >> 16)) & 1) && gp0remainingCommands == 0))
+					{
+						destAddr = (vramTransferCurrentY * 2048) + (vramTransferCurrentX * 2);
+						vramSet16(destAddr, value >> 16);
+						vramTransferCurrentX++;
+						if (vramTransferCurrentX >= ((uint32_t)destX) + width)
+						{
+							vramTransferCurrentX = destX;
+							vramTransferCurrentY++;
+						}
+					}
 
 					if (gp0remainingCommands == 0)
 					{
@@ -172,7 +211,7 @@ uint32_t gpu::get32(uint32_t addr)
 				case dmaDirection::CPUtoGP0: dmaRequest = ret & (1 << 28); break;
 				case dmaDirection::GPUREADtoCPU: dmaRequest = ret & (1 << 27); break;
 			}
-			ret |= dmaRequest << 25;
+			ret |= ((uint32_t)dmaRequest) << 25;
 			return ret;
 		}
 	}
@@ -182,6 +221,17 @@ void gpu::set16(uint32_t addr, uint16_t value) { logging::fatal("unimplemented 1
 uint16_t gpu::get16(uint32_t addr) { logging::fatal("unimplemented 16 bit GPU read" + helpers::intToHex(addr), logging::logSource::GPU); return 0; }
 void gpu::set8(uint32_t addr, uint8_t value) { logging::fatal("unimplemented 8 bit GPU write " + helpers::intToHex(addr), logging::logSource::GPU); }
 uint8_t gpu::get8(uint32_t addr) { logging::fatal("unimplemented 8 bit GPU read" + helpers::intToHex(addr), logging::logSource::GPU); return 0; }
+
+void gpu::vramSet16(uint32_t addr, uint16_t value)
+{
+	vram[addr] = value & 0xFF;
+	vram[addr + 1] = (value >> 8) & 0xFF;
+}
+
+uint16_t gpu::vramGet16(uint32_t addr)
+{
+	return vram[addr] | (vram[addr + 1] << 8);
+}
 
 gp0Instruction gpu::getGP0Instr(uint32_t value)
 {
@@ -387,8 +437,14 @@ void gpu::gp0_quad_shaded_opaque()
 
 void gpu::gp0_copyRectCPUtoVRAM()
 {
+	uint32_t destCoord = gp0commandBuffer[1];
+	uint16_t destX = destCoord & 0xFFFF;
+	uint16_t destY = destCoord >> 16;
 	uint32_t widthheight = gp0commandBuffer[2];
 	uint32_t rectSize = (widthheight & 0xFFFF) * (widthheight >> 16);
+
+	vramTransferCurrentX = destX;
+	vramTransferCurrentY = destY;
 
 	// Pixels are 16 bits, so account for the padding at the end if there's an odd number
 	gp0remainingCommands = ((rectSize + 1) & ~1) / 2;
@@ -576,8 +632,6 @@ GLuint gpu::linkProgram(std::list<GLuint> shaders)
 	{
 		glAttachShader(program, shader);
 	}
-	//glBindAttribLocation(program, 0, "i_position");
-	//glBindAttribLocation(program, 1, "i_color");
 	glLinkProgram(program);
 
 	GLint status;
@@ -646,5 +700,20 @@ void gpu::draw()
 void gpu::display()
 {
 	draw();
-	SDL_GL_SwapWindow(sdlWindow);
+	//SDL_GL_SwapWindow(sdlWindow);
+	glReadPixels(0, 0, 1024, 512, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, glBuffer);
+	for (uint32_t i = 0; i < 2048 * 512; i += 2)
+	{
+		uint32_t row = i / 2048;
+		uint32_t col = i % 2048;
+		row = (512 - row) - 1;
+		if (glBuffer[i + 1] & 0x80)
+		{
+			vram[(row * 2048) + col] = glBuffer[i];
+			vram[(row * 2048) + col + 1] = glBuffer[i + 1];
+		}
+	}
+	SDL_UpdateTexture(screenTexture, NULL, vram, 2048);
+	SDL_RenderCopy(sdlRenderer, screenTexture, NULL, NULL);
+	SDL_RenderPresent(sdlRenderer);
 }

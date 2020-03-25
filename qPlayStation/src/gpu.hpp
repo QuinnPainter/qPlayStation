@@ -106,12 +106,18 @@ class gpu : public peripheral
 		void set8(uint32_t addr, uint8_t value);
 		uint8_t get8(uint32_t addr);
 	private:
+		void vramSet16(uint32_t addr, uint16_t value);
+		uint16_t vramGet16(uint32_t addr);
+		uint8_t* vram;
 		uint32_t gp0commandBuffer[12];
 		int gp0commandBufferIndex;
 		int gp0remainingCommands;
 		gp0Instruction currentGP0Instruction;
 		GP0Mode gp0Mode;
 		gp0Instruction getGP0Instr(uint32_t value);
+
+		uint32_t vramTransferCurrentX;
+		uint32_t vramTransferCurrentY;
 
 		uint8_t texPageXBase;
 		uint8_t texPageYBase;
@@ -184,6 +190,10 @@ class gpu : public peripheral
 		void gp0_maskBitSetting();
 
 		// Renderer Stuff
+		SDL_Renderer* sdlRenderer;
+		SDL_Texture* screenTexture;
+		uint8_t* glBuffer;
+
 		SDL_Window* sdlWindow;
 		SDL_GLContext glContext;
 		GLuint vertexArrayObject;
