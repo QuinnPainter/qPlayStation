@@ -29,6 +29,7 @@ int main(int argc, char* args[])
     {
         exeInfo.present = false;
     }
+    //exeInfo.present = false; // uncomment to force BIOS
 
     initSDL();
 

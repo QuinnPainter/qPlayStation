@@ -20,6 +20,7 @@ bios::bios(char* biosPath)
     {
         logging::fatal("unable to load BIOS file", logging::logSource::BIOS);
     }
+    patchBIOSforTTY();
 }
 
 bios::~bios()
@@ -55,4 +56,20 @@ void bios::set8(uint32_t addr, uint8_t value)
 uint8_t bios::get8(uint32_t addr)
 {
     return biosData[addr];
+}
+
+void bios::patchBIOS(uint32_t addr, uint32_t value)
+{
+    addr -= 0x1FC00000;
+    biosData[addr] = value & 0xFF;
+    biosData[addr + 1] = (value >> 8) & 0xFF;
+    biosData[addr + 2] = (value >> 16) & 0xFF;
+    biosData[addr + 3] = (value >> 24) & 0xFF;
+}
+
+void bios::patchBIOSforTTY()
+{
+    logging::info("Patching BIOS to enable TTY", logging::logSource::BIOS);
+    patchBIOS(0x1FC06F0C, 0x24010001); // Taken from duckstation
+    patchBIOS(0x1FC06F14, 0xAF81A9C0);
 }

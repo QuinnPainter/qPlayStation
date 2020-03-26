@@ -13,6 +13,8 @@ class bios : public peripheral
 		uint16_t get16(uint32_t addr);
 		void set8(uint32_t addr, uint8_t value);
 		uint8_t get8(uint32_t addr);
+		void patchBIOS(uint32_t addr, uint32_t value);
+		void patchBIOSforTTY();
 	private:
 		uint8_t* biosData = nullptr;
 };

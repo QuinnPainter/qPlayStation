@@ -6,6 +6,7 @@ memory::memory(bios* b, gpu* g)
 	GPU = g;
 	RAM = new ram();
 	DMA = new dma(RAM, GPU);
+	TTY = new tty();
 	pStub = new peripheralStub();
 }
 
@@ -13,6 +14,7 @@ memory::~memory()
 {
 	delete(DMA);
 	delete(RAM);
+	delete(TTY);
 	delete(pStub);
 }
 
@@ -98,6 +100,10 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 		{
 			return {GPU, adjAddr - 0x1F801810};
 		}
+		else if (adjAddr >= 0x1F802020 && adjAddr < 0x1F802030) // DUART
+		{
+			return {TTY, adjAddr - 0x1F802020};
+		}
 		else
 		{
 			//logging::info("IO Access: " + helpers::intToHex(addr), logging::logSource::memory);
@@ -117,5 +123,38 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 	{
 		logging::fatal("unimplemented memory location: " + helpers::intToHex(addr), logging::logSource::memory);
 		return {pStub, 0};
+	}
+}
+
+void tty::set32(uint32_t addr, uint32_t value) { logging::fatal("unhandled 32 bit write to DUART: " + helpers::intToHex(addr), logging::logSource::memory); }
+uint32_t tty::get32(uint32_t addr) { logging::fatal("unhandled 32 bit read from DUART: " + helpers::intToHex(addr), logging::logSource::memory); return 0; }
+void tty::set16(uint32_t addr, uint16_t value) { logging::fatal("unhandled 16 bit write to DUART: " + helpers::intToHex(addr), logging::logSource::memory); }
+uint16_t tty::get16(uint32_t addr) { logging::fatal("unhandled 16 bit read from DUART: " + helpers::intToHex(addr), logging::logSource::memory); return 0; }
+void tty::set8(uint32_t addr, uint8_t value)
+{
+	if (addr == 0x3)
+	{
+		if ((char)value == '\n')
+		{
+			logging::info(buffer, logging::logSource::TTY);
+			buffer = "";
+		}
+		else
+		{
+			buffer.append(1, (char)value);
+		}
+	}
+}
+
+uint8_t tty::get8(uint32_t addr)
+{
+	if (addr == 0x1)
+	{
+		// status register - return buffer empty
+		return 0x4 | 0x08;
+	}
+	else
+	{
+		logging::fatal("unhandled 8 bit read from DUART: " + helpers::intToHex(addr), logging::logSource::memory); return 0;
 	}
 }
