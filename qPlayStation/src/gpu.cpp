@@ -26,6 +26,7 @@ gpu::~gpu()
 	glDeleteProgram(program);
 	SDL_GL_DeleteContext(glContext);
 	delete[] vram;
+	delete[] glBuffer;
 }
 
 void gpu::reset()
@@ -33,7 +34,7 @@ void gpu::reset()
 	texPageXBase = 0;
 	texPageYBase = 0;
 	semiTransparency = 0;
-	texPageColourDepth = textureColourDepth::texDepth4Bit;
+	texPageColourDepth = textureColourDepthValue::texDepth4Bit;
 	dithering = false;
 	canDrawToDisplay = false;
 	setMask = false;
@@ -71,6 +72,8 @@ void gpu::reset()
 	displayLineEnd = 0;
 
 	gp1_resetCommandBuffer();
+
+	texWindowInfoUpdated();
 }
 
 void gpu::set32(uint32_t addr, uint32_t value)
@@ -292,7 +295,7 @@ void gpu::gp1_softReset()
 	texPageXBase = 0;
 	texPageYBase = 0;
 	semiTransparency = 0;
-	texPageColourDepth = textureColourDepth::texDepth4Bit;
+	texPageColourDepth = textureColourDepthValue::texDepth4Bit;
 	dithering = false;
 	canDrawToDisplay = false;
 	texDisable = false;
@@ -324,6 +327,8 @@ void gpu::gp1_softReset()
 	displayHorizontalEnd = 0xC00;
 	displayLineStart = 0x10;
 	displayLineEnd = 0x100;
+
+	texWindowInfoUpdated();
 
 	gp1_resetCommandBuffer();
 	//should also clear command FIFO and texture cache
@@ -396,43 +401,38 @@ void gpu::gp0_clearCache()
 void gpu::gp0_quad_mono_opaque()
 {
 	Colour c = Colour::fromGP0(gp0commandBuffer[0]);
-	pushQuad(Position::fromGP0(gp0commandBuffer[1]),
-		Position::fromGP0(gp0commandBuffer[2]),
-		Position::fromGP0(gp0commandBuffer[3]),
-		Position::fromGP0(gp0commandBuffer[4]),
-		c, c, c, c);
+	pushQuad({ Position::fromGP0(gp0commandBuffer[1]), c },
+		{ Position::fromGP0(gp0commandBuffer[2]), c },
+		{ Position::fromGP0(gp0commandBuffer[3]), c },
+		{ Position::fromGP0(gp0commandBuffer[4]), c });
 }
 
 void gpu::gp0_quad_texture_blend_opaque()
 {
-	Colour c = Colour{ 255, 0, 255 };
-	pushQuad(Position::fromGP0(gp0commandBuffer[1]),
-		Position::fromGP0(gp0commandBuffer[3]),
-		Position::fromGP0(gp0commandBuffer[5]),
-		Position::fromGP0(gp0commandBuffer[7]),
-		c, c, c, c);
+	Colour c = Colour::fromGP0(gp0commandBuffer[0]);
+	ClutAttr clut = ClutAttr::fromGP0(gp0commandBuffer[2]);
+	TexPage texPage = TexPage::fromGP0(gp0commandBuffer[4]);
+	TextureColourDepth texDepth = TextureColourDepth::fromGP0(gp0commandBuffer[4]);
+	GLubyte blend = (GLubyte)BlendMode::BlendTexture;
+	pushQuad({ Position::fromGP0(gp0commandBuffer[1]), c, texPage, TexCoord::fromGP0(gp0commandBuffer[2]), clut, texDepth, blend },
+		{ Position::fromGP0(gp0commandBuffer[3]), c, texPage, TexCoord::fromGP0(gp0commandBuffer[4]), clut, texDepth, blend },
+		{ Position::fromGP0(gp0commandBuffer[5]), c, texPage, TexCoord::fromGP0(gp0commandBuffer[6]), clut, texDepth, blend },
+		{ Position::fromGP0(gp0commandBuffer[7]), c, texPage, TexCoord::fromGP0(gp0commandBuffer[8]), clut, texDepth, blend });
 }
 
 void gpu::gp0_tri_shaded_opaque()
 {
-	pushTriangle(Position::fromGP0(gp0commandBuffer[1]),
-		Position::fromGP0(gp0commandBuffer[3]),
-		Position::fromGP0(gp0commandBuffer[5]),
-		Colour::fromGP0(gp0commandBuffer[0]),
-		Colour::fromGP0(gp0commandBuffer[2]),
-		Colour::fromGP0(gp0commandBuffer[4]));
+	pushTriangle({ Position::fromGP0(gp0commandBuffer[1]), Colour::fromGP0(gp0commandBuffer[0]) },
+		{ Position::fromGP0(gp0commandBuffer[3]), Colour::fromGP0(gp0commandBuffer[2]) },
+		{ Position::fromGP0(gp0commandBuffer[5]), Colour::fromGP0(gp0commandBuffer[4]) });
 }
 
 void gpu::gp0_quad_shaded_opaque()
 {
-	pushQuad(Position::fromGP0(gp0commandBuffer[1]),
-		Position::fromGP0(gp0commandBuffer[3]),
-		Position::fromGP0(gp0commandBuffer[5]),
-		Position::fromGP0(gp0commandBuffer[7]),
-		Colour::fromGP0(gp0commandBuffer[0]),
-		Colour::fromGP0(gp0commandBuffer[2]),
-		Colour::fromGP0(gp0commandBuffer[4]),
-		Colour::fromGP0(gp0commandBuffer[6]));
+	pushQuad({ Position::fromGP0(gp0commandBuffer[1]), Colour::fromGP0(gp0commandBuffer[0]) },
+		{ Position::fromGP0(gp0commandBuffer[3]), Colour::fromGP0(gp0commandBuffer[2]) },
+		{ Position::fromGP0(gp0commandBuffer[5]), Colour::fromGP0(gp0commandBuffer[4]) },
+		{ Position::fromGP0(gp0commandBuffer[7]), Colour::fromGP0(gp0commandBuffer[6]) });
 }
 
 void gpu::gp0_copyRectCPUtoVRAM()
@@ -453,7 +453,7 @@ void gpu::gp0_copyRectCPUtoVRAM()
 
 void gpu::gp0_copyRectVRAMtoCPU()
 {
-	// No VRAM yet
+	// todo
 }
 
 void gpu::gp0_drawModeSetting()
@@ -462,7 +462,7 @@ void gpu::gp0_drawModeSetting()
 	texPageXBase = value & 0xF;
 	texPageYBase = (value >> 4) & 1;
 	semiTransparency = (value >> 5) & 3;
-	texPageColourDepth = (textureColourDepth)((value >> 7) & 3);
+	texPageColourDepth = (textureColourDepthValue)((value >> 7) & 3);
 	dithering = (value >> 9) & 1;
 	canDrawToDisplay = (value >> 10) & 1;
 	texDisable = (value >> 11) & 1;
@@ -477,6 +477,7 @@ void gpu::gp0_textureWindowSetting()
 	textureWindowYMask = (value >> 5) & 0x1F;
 	textureWindowXOffset = (value >> 10) & 0x1F;
 	textureWindowYOffset = (value >> 15) & 0x1F;
+	texWindowInfoUpdated();
 }
 
 void gpu::gp0_setDrawAreaTopLeft()
@@ -509,6 +510,11 @@ void gpu::gp0_maskBitSetting()
 	preserveMaskedPixels = value & 2;
 }
 
+void gpu::texWindowInfoUpdated()
+{
+	glUniform4ui(texWindowInfo, textureWindowXMask, textureWindowXOffset, textureWindowYMask, textureWindowYOffset);
+}
+
 template <class T> Buffer<T>::Buffer()
 {
 	glGenBuffers(1, &bufObject);
@@ -539,26 +545,101 @@ template <class T> void Buffer<T>::set(uint32_t index, T value)
 	map[index] = value;
 }
 
+void GLAPIENTRY GLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+{
+	logging::warning(std::string(message), logging::logSource::GPU);
+}
+
 void gpu::initOpenGL()
 {
 	const char* vertexShaderSrc =
 		"#version 330\n"
 		"in ivec2 vertex_position;\n"
 		"in uvec3 vertex_color;\n"
-		"out vec3 v_color;\n"
+		"in uvec2 texture_page;\n"
+		"in uvec2 texture_coord;\n"
+		"in uvec2 clut;\n"
+		"in uint texture_depth;\n"
+		"in uint texture_blend_mode;\n"
+		"out vec3 frag_color;\n"
+		"flat out uvec2 frag_texture_page;\n"
+		"out vec2 frag_texture_coord;\n"
+		"flat out uvec2 frag_clut;\n"
+		"flat out uint frag_texture_depth;\n"
+		"flat out uint frag_blend_mode;\n"
 		"void main() {\n"
 		"	float xpos = (float(vertex_position.x) / 512) - 1.0;\n"
 		"	float ypos = 1.0 - (float(vertex_position.y) / 256);\n"
 		"	gl_Position.xyzw = vec4(xpos, ypos, 0.0, 1.0);\n"
-		"	v_color = vec3(float(vertex_color.r) / 255, float(vertex_color.g) / 255, float(vertex_color.b) / 255);\n"
+		"	frag_color = vec3(float(vertex_color.r) / 255, float(vertex_color.g) / 255, float(vertex_color.b) / 255);\n"
+		"	frag_texture_page = texture_page;\n"
+		"	frag_texture_coord = vec2(texture_coord);\n"
+		"	frag_clut = clut;\n"
+		"	frag_texture_depth = texture_depth;\n"
+		"	frag_blend_mode = texture_blend_mode;\n"
 		"}\n";
 
 	const char* fragmentShaderSrc =
 		"#version 330\n"
-		"in vec3 v_color;\n"
+		"uniform sampler2D vramTexture;\n"
+		"uniform uvec4 texWindowInfo;\n"
+		"in vec3 frag_color;\n"
+		"flat in uvec2 frag_texture_page;\n"
+		"in vec2 frag_texture_coord;\n"
+		"flat in uvec2 frag_clut;\n"
+		"flat in uint frag_texture_depth;\n"
+		"flat in uint frag_blend_mode;\n"
 		"out vec4 o_color;\n"
+		"const uint BLEND_MODE_NO_TEXTURE = 0U;\n"
+		"const uint BLEND_MODE_RAW_TEXTURE = 1U;\n"
+		"const uint BLEND_MODE_TEXTURE_BLEND = 2U;\n"
+		"vec4 vram_get_pixel(uint x, uint y) {\n"
+		"	return texelFetch(vramTexture, ivec2(x & 0x3ffU, y & 0x1ffU), 0);\n"
+		"}\n"
+		"uint rebuild_psx_color(vec4 color) {\n"
+		"	uint a = uint(floor(color.a + 0.5));\n"
+		"	uint r = uint(floor(color.r * 31. + 0.5));\n"
+		"	uint g = uint(floor(color.g * 31. + 0.5));\n"
+		"	uint b = uint(floor(color.b * 31. + 0.5));\n"
+		"	return (a << 15) | (b << 10) | (g << 5) | r;\n"
+		"}\n"
 		"void main() {\n"
-		"	o_color = vec4(v_color, 1.0);\n"
+		"	if (frag_blend_mode == BLEND_MODE_NO_TEXTURE) {\n"
+		"		o_color = vec4(frag_color, 1.0);\n"
+		"	} else {\n"
+		"		uint frag_texture_depth_new = frag_texture_depth;\n"
+		"		if ((frag_texture_depth & 1U) != 1U) { // Flip frag_texture_depth from 0, 1, 2 to 2, 1, 0\n"
+		"			frag_texture_depth_new ^= 0x2U;\n"
+		"		}\n"
+		"		uint pix_per_hw = 1U << frag_texture_depth_new;\n"
+		"		uint tex_x = uint(frag_texture_coord.x) & 0xffU;\n"
+		"		uint tex_y = uint(frag_texture_coord.y) & 0xffU;\n"
+		"		tex_x = (tex_x & (~(texWindowInfo.x << 3U))) | ((texWindowInfo.z & texWindowInfo.x) << 3U);\n"
+		"		tex_y = (tex_y & (~(texWindowInfo.y << 3U))) | ((texWindowInfo.w & texWindowInfo.x) << 3U);\n"
+		"		uint tex_x_pix = tex_x / pix_per_hw;\n"
+		"		tex_x_pix += frag_texture_page.x;\n"
+		"		tex_y += frag_texture_page.y;\n"
+		"		vec4 texel = vram_get_pixel(tex_x_pix, tex_y);\n"
+		"		if (frag_texture_depth_new > 0U) {\n"
+		"			uint icolor = rebuild_psx_color(texel);\n"
+		"			uint bpp = 16U >> frag_texture_depth_new;\n"
+		"			uint mask = ((1U << bpp) - 1U);\n"
+		"			uint align = tex_x & ((1U << frag_texture_depth_new) - 1U);\n"
+		"			uint shift = (align * bpp);\n"
+		"			uint index = (icolor >> shift) & mask;\n"
+		"			uint clut_x = frag_clut.x + index;\n"
+		"			uint clut_y = frag_clut.y;\n"
+		"			texel = vram_get_pixel(clut_x, clut_y);\n"
+		"		}\n"
+		"		if (rebuild_psx_color(texel) == 0U) {\n"
+		"			discard;\n"
+		"		}\n"
+		"		if (frag_blend_mode == BLEND_MODE_RAW_TEXTURE) {\n"
+		"			o_color = vec4(texel.rgb, 1.0);\n"
+		"		} else {\n"
+		"			o_color = vec4(frag_color * 2. * texel.rgb, 1.0);\n"
+		"		}\n"
+		"	}\n"
 		"}\n";
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -569,8 +650,10 @@ void gpu::initOpenGL()
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 
 	glContext = SDL_GL_CreateContext(sdlWindow);
 	GLenum err = glewInit();
@@ -578,6 +661,8 @@ void gpu::initOpenGL()
 	{
 		logging::fatal("GLEW init error: " + std::string((char*)glewGetErrorString(err)), logging::logSource::GPU);
 	}
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback(GLDebugCallback, 0);
 
 	vertexShader = compileShader(vertexShaderSrc, GL_VERTEX_SHADER);
 	fragmentShader = compileShader(fragmentShaderSrc, GL_FRAGMENT_SHADER);
@@ -593,17 +678,53 @@ void gpu::initOpenGL()
 	glGenVertexArrays(1, &vertexArrayObject);
 	glBindVertexArray(vertexArrayObject);
 
-	// Setup position attribute
-	positions = new Buffer<Position>();
-	GLuint index = findProgramAttrib(program, "vertex_position");
-	glEnableVertexAttribArray(index);
-	glVertexAttribIPointer(index, 2, GL_SHORT, 0, nullptr);
+	GLsizei stride = sizeof(Vertex);
+	uint64_t offset = 0;
+	vertices = new Buffer<Vertex>();
 
-	// Setup colour attribute
-	colours = new Buffer<Colour>();
-	index = findProgramAttrib(program, "vertex_color");
-	glEnableVertexAttribArray(index);
-	glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
+	glBindAttribLocation(program, 0, "vertex_position");
+	glEnableVertexAttribArray(0);
+	glVertexAttribIPointer(0, 2, GL_SHORT, stride, (void*)offset);
+	offset += sizeof(Position);
+
+	glBindAttribLocation(program, 1, "vertex_color");
+	glEnableVertexAttribArray(1);
+	glVertexAttribIPointer(1, 3, GL_UNSIGNED_BYTE, stride, (void*)offset);
+	offset += sizeof(Colour);
+
+	glBindAttribLocation(program, 2, "texture_page");
+	glEnableVertexAttribArray(2);
+	glVertexAttribIPointer(2, 2, GL_UNSIGNED_SHORT, stride, (void*)offset);
+	offset += sizeof(TexPage);
+
+	glBindAttribLocation(program, 3, "texture_coord");
+	glEnableVertexAttribArray(3);
+	glVertexAttribIPointer(3, 2, GL_UNSIGNED_BYTE, stride, (void*)offset);
+	offset += sizeof(TexCoord);
+
+	glBindAttribLocation(program, 4, "clut");
+	glEnableVertexAttribArray(4);
+	glVertexAttribIPointer(4, 2, GL_UNSIGNED_SHORT, stride, (void*)offset);
+	offset += sizeof(ClutAttr);
+
+	glBindAttribLocation(program, 5, "texture_depth");
+	glEnableVertexAttribArray(5);
+	glVertexAttribIPointer(5, 1, GL_UNSIGNED_BYTE, stride, (void*)offset);
+	offset += sizeof(TextureColourDepth);
+
+	glBindAttribLocation(program, 6, "texture_blend_mode");
+	glEnableVertexAttribArray(6);
+	glVertexAttribIPointer(6, 1, GL_UNSIGNED_BYTE, stride, (void*)offset);
+	offset += sizeof(GLubyte);
+
+	glGenTextures(1, &vramTexture);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, vramTexture);
+	glUniform1i(glGetUniformLocation(program, "vramTexture"), 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	texWindowInfo = glGetUniformLocation(program, "texWindowInfo");
 
 	nVertices = 0;
 }
@@ -620,7 +741,7 @@ GLuint gpu::compileShader(const char* str, GLenum shaderType)
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 	if (status == GL_FALSE)
 	{
-		logging::fatal("Shader compilation failed", logging::logSource::GPU);
+		logging::fatal("Shader compilation failed: " + std::string(str), logging::logSource::GPU);
 	}
 	return shader;
 }
@@ -643,43 +764,31 @@ GLuint gpu::linkProgram(std::list<GLuint> shaders)
 	return program;
 }
 
-GLuint gpu::findProgramAttrib(GLuint program, const char* attribute)
-{
-	int index = glGetAttribLocation(program, attribute);
-	if (index < 0)
-	{
-		logging::fatal("Attribute: \"" + std::string(attribute) + "\" not found", logging::logSource::GPU);
-	}
-	return (GLuint)index;
-}
-
-void gpu::pushTriangle(Position p1, Position p2, Position p3, Colour c1, Colour c2, Colour c3)
+void gpu::pushTriangle(Vertex v1, Vertex v2, Vertex v3)
 {
 	if (nVertices + 3 > VERTEX_BUFFER_LEN)
 	{
 		logging::warning("Vertex buffers full, forcing draw", logging::logSource::GPU);
 		draw();
 	}
-	positions->set(nVertices, p1);
-	colours->set(nVertices, c1);
+	vertices->set(nVertices, v1);
 	nVertices++;
-	positions->set(nVertices, p2);
-	colours->set(nVertices, c2);
+	vertices->set(nVertices, v2);
 	nVertices++;
-	positions->set(nVertices, p3);
-	colours->set(nVertices, c3);
+	vertices->set(nVertices, v3);
 	nVertices++;
 }
 
-void gpu::pushQuad(Position p1, Position p2, Position p3, Position p4, Colour c1, Colour c2, Colour c3, Colour c4)
+void gpu::pushQuad(Vertex v1, Vertex v2, Vertex v3, Vertex v4)
 {
-	pushTriangle(p1, p2, p3, c1, c2, c3);
-	pushTriangle(p2, p3, p4, c2, c3, c4);
+	pushTriangle(v1, v2, v3);
+	pushTriangle(v2, v3, v4);
 }
 
 void gpu::draw()
 {
 	if (nVertices == 0) { return; }
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, vram);
 	glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 	glDrawArrays(GL_TRIANGLES, 0, nVertices);
 
@@ -702,15 +811,20 @@ void gpu::display()
 	draw();
 	//SDL_GL_SwapWindow(sdlWindow);
 	glReadPixels(0, 0, 1024, 512, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV, glBuffer);
-	for (uint32_t i = 0; i < 2048 * 512; i += 2)
+	for (int32_t i = 0; i < 2048 * 512; i += 2)
 	{
-		uint32_t row = i / 2048;
-		uint32_t col = i % 2048;
+		int32_t row = i / 2048;
+		int32_t col = i % 2048;
 		row = (512 - row) - 1;
 		if (glBuffer[i + 1] & 0x80)
 		{
-			vram[(row * 2048) + col] = glBuffer[i];
-			vram[(row * 2048) + col + 1] = glBuffer[i + 1];
+			int32_t yPos = row + drawingYOffset;
+			int32_t xPos = col + (drawingXOffset * 2);
+			if (xPos >= drawingAreaLeft * 2 && xPos <= drawingAreaRight * 2 && yPos >= drawingAreaTop && yPos <= drawingAreaBottom)
+			{
+				vram[(yPos * 2048) + xPos] = glBuffer[i];
+				vram[(yPos * 2048) + xPos + 1] = glBuffer[i + 1];
+			}
 		}
 	}
 	SDL_UpdateTexture(screenTexture, NULL, vram, 2048);

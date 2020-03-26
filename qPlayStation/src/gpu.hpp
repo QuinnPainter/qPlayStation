@@ -2,6 +2,14 @@
 #include "helpers.hpp"
 #include "peripheral.hpp"
 
+enum class BlendMode : uint8_t
+{
+	NoTexture = 0,
+	RawTexture = 1,
+	BlendTexture = 2
+};
+
+#pragma pack(push, 1)
 struct Position
 {
 	GLshort x;
@@ -25,6 +33,74 @@ struct Colour
 	}
 };
 
+struct TexPage
+{
+	GLushort xBase;
+	GLushort yBase;
+
+	static TexPage fromGP0(uint32_t value)
+	{
+		GLushort x = ((value >> 16) & 0xF) * 64;
+		GLushort y = (((value >> 16) >> 4) & 1) * 256;
+		return { x, y };
+	}
+};
+
+struct TexCoord
+{
+	GLubyte x;
+	GLubyte y;
+
+	static TexCoord fromGP0(uint32_t value)
+	{
+		return { value & 0xFF, (value >> 8) & 0xFF };
+	}
+};
+
+struct ClutAttr
+{
+	GLushort x;
+	GLushort y;
+
+	static ClutAttr fromGP0(uint32_t value)
+	{
+		return { ((value >> 16) & 0x3F) * 16, ((value >> 16) >> 6) & 0x1FF };
+	}
+};
+
+struct TextureColourDepth
+{
+	GLubyte depth;
+
+	static TextureColourDepth fromGP0(uint32_t value)
+	{
+		return { ((value >> 16) >> 7) & 0x3 };
+	}
+};
+
+struct Vertex
+{
+	Position position;
+	Colour colour;
+	TexPage texPage;
+	TexCoord texCoord;
+	ClutAttr clut;
+	TextureColourDepth texDepth;
+	GLubyte blendMode;
+
+	Vertex(Position p, Colour c, TexPage t = { 0, 0 }, TexCoord tc = { 0, 0 }, ClutAttr ca = { 0, 0 }, TextureColourDepth td = { 0 }, GLubyte bm = 0)
+	{
+		position = p;
+		colour = c;
+		texPage = t;
+		texCoord = tc;
+		clut = ca;
+		texDepth = td;
+		blendMode = bm;
+	}
+};
+#pragma pack(pop)
+
 #define VERTEX_BUFFER_LEN 65536
 template <class T> struct Buffer
 {
@@ -36,7 +112,7 @@ template <class T> struct Buffer
 	void set(uint32_t index, T value);
 };
 
-enum class textureColourDepth : uint8_t
+enum class textureColourDepthValue : uint8_t
 {
 	texDepth4Bit = 0,
 	texDepth8Bit = 1,
@@ -122,7 +198,7 @@ class gpu : public peripheral
 		uint8_t texPageXBase;
 		uint8_t texPageYBase;
 		uint8_t semiTransparency;
-		textureColourDepth texPageColourDepth;
+		textureColourDepthValue texPageColourDepth;
 		bool dithering;
 		bool canDrawToDisplay;
 		bool setMask;
@@ -189,6 +265,8 @@ class gpu : public peripheral
 		void gp0_setDrawOffset();
 		void gp0_maskBitSetting();
 
+		void texWindowInfoUpdated();
+
 		// Renderer Stuff
 		SDL_Renderer* sdlRenderer;
 		SDL_Texture* screenTexture;
@@ -200,14 +278,14 @@ class gpu : public peripheral
 		GLuint vertexShader;
 		GLuint fragmentShader;
 		GLuint program;
-		Buffer<Position>* positions;
-		Buffer<Colour>* colours;
+		GLuint vramTexture;
+		GLint texWindowInfo;
+		Buffer<Vertex>* vertices;
 		uint32_t nVertices;
 		void initOpenGL();
 		GLuint compileShader(const char* str, GLenum shaderType);
 		GLuint linkProgram(std::list<GLuint> shaders);
-		GLuint findProgramAttrib(GLuint program, const char* attribute);
-		void pushTriangle(Position p1, Position p2, Position p3, Colour c1, Colour c2, Colour c3);
-		void pushQuad(Position p1, Position p2, Position p3, Position p4, Colour c1, Colour c2, Colour c3, Colour c4);
+		void pushTriangle(Vertex v1, Vertex v2, Vertex v3);
+		void pushQuad(Vertex v1, Vertex v2, Vertex v3, Vertex v4);
 		void draw();
 };
