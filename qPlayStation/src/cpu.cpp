@@ -399,7 +399,7 @@ void cpu::op_cop0(uint32_t instr) // Coprocessor 0 Operation
 			if (decode_funct(instr) == 0b010000) // RFE - Return from Exception
 			{
 				uint32_t mode = cop0_sr & 0x3F;
-				cop0_sr &= ~0x3F;
+				cop0_sr &= ~0xF;
 				cop0_sr |= mode >> 2;
 			}
 			else
@@ -511,7 +511,7 @@ void cpu::op_bcondz(uint32_t instr) // BLTZ / BLTZAL / BGEZ / BGEZAL
 
 	if (link)
 	{
-		setReg(31, pc);
+		setReg(31, next_pc);
 	}
 	if (test)
 	{

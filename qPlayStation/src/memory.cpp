@@ -5,6 +5,7 @@ memory::memory(bios* b, gpu* g)
 	BIOS = b;
 	GPU = g;
 	RAM = new ram();
+	Scratchpad = new scratchpad();
 	DMA = new dma(RAM, GPU);
 	TTY = new tty();
 	pStub = new peripheralStub();
@@ -14,6 +15,7 @@ memory::~memory()
 {
 	delete(DMA);
 	delete(RAM);
+	delete(Scratchpad);
 	delete(TTY);
 	delete(pStub);
 }
@@ -88,7 +90,7 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 	}
 	else if (adjAddr >= 0x1F800000 && adjAddr < 0x1F800400) // Scratchpad
 	{
-		return {pStub, 0};
+		return {Scratchpad, adjAddr - 0x1F800000};
 	}
 	else if (adjAddr >= 0x1F801000 && adjAddr < 0x1F803000) // IO / Expansion Area
 	{

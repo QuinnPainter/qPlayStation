@@ -38,6 +38,7 @@ class memory
 	private:
 		bios* BIOS;
 		ram* RAM;
+		scratchpad* Scratchpad;
 		dma* DMA;
 		gpu* GPU;
 		tty* TTY;
