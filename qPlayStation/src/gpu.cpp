@@ -71,6 +71,8 @@ void gpu::reset()
 	displayLineStart = 0;
 	displayLineEnd = 0;
 
+	gpuReadLatch = 0;
+
 	gp1_resetCommandBuffer();
 
 	texWindowInfoUpdated();
@@ -155,7 +157,7 @@ void gpu::set32(uint32_t addr, uint32_t value)
 				case 0x08: gp1_displayMode(value); break;
 				case 0x09: logging::fatal("Unhandled GP1 opcode: Texture Disable - " + helpers::intToHex(value), logging::logSource::GPU); break;
 				case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17: case 0x18: case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: case 0x1F:
-					logging::fatal("Unhandled GP1 opcode: Get GPU Info - " + helpers::intToHex(value), logging::logSource::GPU); break;
+					gp1_gpuInfo(value); break;
 				default: logging::fatal("Invalid GP1 opcode: " + helpers::intToHex(value), logging::logSource::GPU); break;
 			}
 			break;
@@ -169,8 +171,7 @@ uint32_t gpu::get32(uint32_t addr)
 	{
 		case 0: // GPUREAD - for reading back info from the GPU to the CPU
 		{
-			logging::info("GPUREAD", logging::logSource::GPU);
-			return 0;
+			return gpuReadLatch;
 		}
 		case 4: // GPUSTAT - GPU status register
 		{
@@ -246,6 +247,7 @@ gp0Instruction gpu::getGP0Instr(uint32_t value)
 		case 0x2C: return { 9, &gpu::gp0_quad_texture_blend_opaque };
 		case 0x30: return { 6, &gpu::gp0_tri_shaded_opaque };
 		case 0x38: return { 8, &gpu::gp0_quad_shaded_opaque };
+		case 0x68: return { 2, &gpu::gp0_rect_mono_1x1_opaque };
 		case 0xA0: return { 3, &gpu::gp0_copyRectCPUtoVRAM };
 		case 0xC0: return { 3, &gpu::gp0_copyRectVRAMtoCPU };
 		case 0xE1: return { 1, &gpu::gp0_drawModeSetting };
@@ -386,6 +388,20 @@ void gpu::gp1_displayMode(uint32_t value)
 	reverseFlag = value & 0x80;
 }
 
+void gpu::gp1_gpuInfo(uint32_t value)
+{
+	switch (value & 0x7)
+	{
+		case 2: gpuReadLatch = textureWindowXMask |
+			(((uint32_t)textureWindowYMask) << 5) |
+			(((uint32_t)textureWindowXOffset) << 10) |
+			(((uint32_t)textureWindowYOffset) << 15);
+		case 3: gpuReadLatch = drawingAreaLeft | (((uint32_t)drawingAreaTop) << 10);
+		case 4: gpuReadLatch = drawingAreaRight | (((uint32_t)drawingAreaBottom) << 10);
+		case 5: gpuReadLatch = drawingXOffset | (((uint32_t)drawingYOffset) << 11);
+	}
+}
+
 // -------------------------- GP0 Render Commands --------------------------
 
 void gpu::gp0_nop()
@@ -433,6 +449,11 @@ void gpu::gp0_quad_shaded_opaque()
 		{ Position::fromGP0(gp0commandBuffer[3]), Colour::fromGP0(gp0commandBuffer[2]) },
 		{ Position::fromGP0(gp0commandBuffer[5]), Colour::fromGP0(gp0commandBuffer[4]) },
 		{ Position::fromGP0(gp0commandBuffer[7]), Colour::fromGP0(gp0commandBuffer[6]) });
+}
+
+void gpu::gp0_rect_mono_1x1_opaque()
+{
+	pushRect({ Position::fromGP0(gp0commandBuffer[1]), Colour::fromGP0(gp0commandBuffer[0]), { 1, 1 } });
 }
 
 void gpu::gp0_copyRectCPUtoVRAM()
@@ -783,6 +804,16 @@ void gpu::pushQuad(Vertex v1, Vertex v2, Vertex v3, Vertex v4)
 {
 	pushTriangle(v1, v2, v3);
 	pushTriangle(v2, v3, v4);
+}
+
+void gpu::pushRect(Rectangle r)
+{
+	// todo: texture coordinates should probably also be modified by the width and height
+	Vertex v1 = { r.position, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
+	Vertex v2 = { { r.position.x + r.widthHeight.width, r.position.y }, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
+	Vertex v3 = { { r.position.x, r.position.y + r.widthHeight.height }, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
+	Vertex v4 = { { r.position.x + r.widthHeight.width, r.position.y + r.widthHeight.height }, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
+	pushQuad(v1, v2, v3, v4);
 }
 
 void gpu::draw()

@@ -2,6 +2,14 @@
 #include "helpers.hpp"
 #include "memory.hpp"
 
+struct EXEInfo
+{
+	bool present;
+	uint32_t initialPC;
+	uint32_t initialR28;
+	uint32_t initialR29R30;
+};
+
 struct pendingLoad
 {
 	uint8_t regIndex;
@@ -25,10 +33,11 @@ enum class psException : uint32_t
 class cpu
 {
 	public:
-		cpu(memory* mem);
+		cpu(memory* mem, EXEInfo exeI);
 		void reset();
 		void step();
 	private:
+		EXEInfo exeInfo;
 		uint32_t pc;
 		uint32_t in_regs[32];
 		uint32_t out_regs[32];

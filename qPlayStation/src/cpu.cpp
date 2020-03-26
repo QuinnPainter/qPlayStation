@@ -1,8 +1,9 @@
 #include "cpu.hpp"
 
-cpu::cpu(memory* mem)
+cpu::cpu(memory* mem, EXEInfo exeI)
 {
 	Memory = mem;
+	exeInfo = exeI;
 	reset();
 }
 
@@ -43,13 +44,24 @@ bool cpu::cacheIsolated()
 
 void cpu::step()
 {
-	uint32_t instr = Memory->get32(pc);
-	current_pc = pc;
+	if (pc == 0xBFC06FF0 && exeInfo.present)
+	{
+		logging::info("Jumping to EXE", logging::logSource::CPU);
+		pc = exeInfo.initialPC;
+		next_pc = pc + 4;
+		setReg(28, exeInfo.initialR28);
+		setReg(29, exeInfo.initialR29R30);
+		setReg(30, exeInfo.initialR29R30);
+	}
 
-	if (!helpers::is32BitAligned(current_pc))
+	if (!helpers::is32BitAligned(pc))
 	{
 		exception(psException::AddrErrorLoad);
 	}
+
+	uint32_t instr = Memory->get32(pc);
+
+	current_pc = pc;
 
 	pc = next_pc;
 	next_pc += 4;
@@ -358,9 +370,13 @@ void cpu::op_cop0(uint32_t instr) // Coprocessor 0 Operation
 			uint32_t outputValue = 0;
 			switch (decode_rd(instr))
 			{
+				case 6: outputValue = 0; break; // JUMPDEST - contains pretty much useless random jump address
+				case 7: outputValue = 0; break; // Breakpoint control
+				case 8: outputValue = 0; break; // BadVaddr - should contain address that caused an address error
 				case 12: outputValue = cop0_sr; break;
 				case 13: outputValue = cop0_cause; break;
 				case 14: outputValue = cop0_epc; break;
+				case 15: outputValue = 0x00000002; break; // Processor ID
 				default: logging::fatal("Read from unhandled COP0 register: " + std::to_string(decode_rd(instr)), logging::logSource::CPU); break;
 			}
 			currentLoad = {decode_rt(instr), outputValue};

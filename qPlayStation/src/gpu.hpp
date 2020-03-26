@@ -2,6 +2,13 @@
 #include "helpers.hpp"
 #include "peripheral.hpp"
 
+enum class textureColourDepthValue : uint8_t
+{
+	texDepth4Bit = 0,
+	texDepth8Bit = 1,
+	texDepth15Bit = 2
+};
+
 enum class BlendMode : uint8_t
 {
 	NoTexture = 0,
@@ -76,6 +83,11 @@ struct TextureColourDepth
 	{
 		return { ((value >> 16) >> 7) & 0x3 };
 	}
+
+	static TextureColourDepth fromValue(textureColourDepthValue value)
+	{
+		return { (GLubyte)value };
+	}
 };
 
 struct Vertex
@@ -101,6 +113,37 @@ struct Vertex
 };
 #pragma pack(pop)
 
+struct RectWidthHeight
+{
+	GLshort width;
+	GLshort height;
+
+	static Position fromGP0(uint32_t value)
+	{
+		return { (GLshort)(value & 0xFFFF), (GLshort)(value >> 16) };
+	}
+};
+
+struct Rectangle
+{
+	Position position;
+	Colour colour;
+	RectWidthHeight widthHeight;
+	TexCoord texCoord;
+	ClutAttr clut;
+	GLubyte blendMode;
+
+	Rectangle(Position p, Colour c, RectWidthHeight wh, TexCoord tc = { 0, 0 }, ClutAttr ca = { 0, 0 }, GLubyte bm = 0)
+	{
+		position = p;
+		colour = c;
+		widthHeight = wh;
+		texCoord = tc;
+		clut = ca;
+		blendMode = bm;
+	}
+};
+
 #define VERTEX_BUFFER_LEN 65536
 template <class T> struct Buffer
 {
@@ -110,13 +153,6 @@ template <class T> struct Buffer
 	Buffer();
 	~Buffer();
 	void set(uint32_t index, T value);
-};
-
-enum class textureColourDepthValue : uint8_t
-{
-	texDepth4Bit = 0,
-	texDepth8Bit = 1,
-	texDepth15Bit = 2
 };
 
 enum class horizontalRes
@@ -185,6 +221,7 @@ class gpu : public peripheral
 		void vramSet16(uint32_t addr, uint16_t value);
 		uint16_t vramGet16(uint32_t addr);
 		uint8_t* vram;
+		uint32_t gpuReadLatch;
 		uint32_t gp0commandBuffer[12];
 		int gp0commandBufferIndex;
 		int gp0remainingCommands;
@@ -248,6 +285,7 @@ class gpu : public peripheral
 		void gp1_horizontalDisplayRange(uint32_t value);
 		void gp1_verticalDisplayRange(uint32_t value);
 		void gp1_displayMode(uint32_t value);
+		void gp1_gpuInfo(uint32_t value);
 
 		// GP0 Render Commands
 		void gp0_nop();
@@ -256,6 +294,7 @@ class gpu : public peripheral
 		void gp0_quad_texture_blend_opaque();
 		void gp0_tri_shaded_opaque();
 		void gp0_quad_shaded_opaque();
+		void gp0_rect_mono_1x1_opaque();
 		void gp0_copyRectCPUtoVRAM();
 		void gp0_copyRectVRAMtoCPU();
 		void gp0_drawModeSetting();
@@ -287,5 +326,6 @@ class gpu : public peripheral
 		GLuint linkProgram(std::list<GLuint> shaders);
 		void pushTriangle(Vertex v1, Vertex v2, Vertex v3);
 		void pushQuad(Vertex v1, Vertex v2, Vertex v3, Vertex v4);
+		void pushRect(Rectangle r);
 		void draw();
 };

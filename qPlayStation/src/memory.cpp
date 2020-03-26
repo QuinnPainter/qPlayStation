@@ -84,6 +84,10 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 	{
 		return {pStub, 0};
 	}
+	else if (adjAddr >= 0x1F800000 && adjAddr < 0x1F800400) // Scratchpad
+	{
+		return {pStub, 0};
+	}
 	else if (adjAddr >= 0x1F801000 && adjAddr < 0x1F803000) // IO / Expansion Area
 	{
 		if (adjAddr >= 0x1F801080 && adjAddr < 0x1F801100) // DMA Registers
