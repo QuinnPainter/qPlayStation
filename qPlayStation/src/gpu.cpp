@@ -243,11 +243,13 @@ gp0Instruction gpu::getGP0Instr(uint32_t value)
 	{
 		case 0x00: return { 1, &gpu::gp0_nop };
 		case 0x01: return { 1, &gpu::gp0_clearCache };
+		case 0x02: return { 3, &gpu::gp0_fillRectVRAM };
 		case 0x28: return { 5, &gpu::gp0_quad_mono_opaque };
 		case 0x2C: return { 9, &gpu::gp0_quad_texture_blend_opaque };
 		case 0x30: return { 6, &gpu::gp0_tri_shaded_opaque };
 		case 0x38: return { 8, &gpu::gp0_quad_shaded_opaque };
 		case 0x68: return { 2, &gpu::gp0_rect_mono_1x1_opaque };
+		case 0x74: return { 3, &gpu::gp0_rect_texture_blend_8x8_opaque };
 		case 0xA0: return { 3, &gpu::gp0_copyRectCPUtoVRAM };
 		case 0xC0: return { 3, &gpu::gp0_copyRectVRAMtoCPU };
 		case 0xE1: return { 1, &gpu::gp0_drawModeSetting };
@@ -414,6 +416,48 @@ void gpu::gp0_clearCache()
 	// No cache yet
 }
 
+void gpu::gp0_fillRectVRAM()
+{
+	uint32_t colour24 = gp0commandBuffer[0] & 0xFFFFFF;
+	uint16_t r = (colour24 & 0xFF) >> 3;
+	uint16_t g = ((colour24 >> 8) & 0xFF) >> 3;
+	uint16_t b = ((colour24 >> 16) & 0xFF) >> 3;
+	uint16_t colour15 = r | (g << 5) | (b << 10); // should this be RGB, or BGR...
+
+	uint16_t left = gp0commandBuffer[1] & 0x3F0;
+	uint16_t top = (gp0commandBuffer[1] >> 16) & 0x1FF;
+	uint16_t width = gp0commandBuffer[2] & 0x7FF;
+	uint16_t height = (gp0commandBuffer[2] >> 16) & 0x1FF;
+
+	if (width == 0x400)
+	{
+		width = 0;
+	}
+	else
+	{
+		width = ((width + 0xF) & 0x3F0); // round up to multiples of 0x10
+	}
+
+	// these should wrap, but instead I'm just clamping them to the edges
+	if (left + width > 0x400)
+	{
+		width = 0x400 - left;
+	}
+	if (top + height > 0x200)
+	{
+		height = 0x200 - top;
+	}
+
+	for (uint16_t line = top; line < top + height; line++)
+	{
+		for (uint16_t x = left; x < left + width; x++)
+		{
+			vram[(line * 2048) + (x * 2)] = colour15 & 0xFF;
+			vram[(line * 2048) + (x * 2) + 1] = colour15 >> 8;
+		}
+	}
+}
+
 void gpu::gp0_quad_mono_opaque()
 {
 	Colour c = Colour::fromGP0(gp0commandBuffer[0]);
@@ -454,6 +498,16 @@ void gpu::gp0_quad_shaded_opaque()
 void gpu::gp0_rect_mono_1x1_opaque()
 {
 	pushRect({ Position::fromGP0(gp0commandBuffer[1]), Colour::fromGP0(gp0commandBuffer[0]), { 1, 1 } });
+}
+
+void gpu::gp0_rect_texture_blend_8x8_opaque()
+{
+	pushRect({ Position::fromGP0(gp0commandBuffer[1]),
+		Colour::fromGP0(gp0commandBuffer[0]),
+		{ 8, 8 },
+		TexCoord::fromGP0(gp0commandBuffer[2]),
+		ClutAttr::fromGP0(gp0commandBuffer[2]),
+		(GLubyte)BlendMode::BlendTexture});
 }
 
 void gpu::gp0_copyRectCPUtoVRAM()
@@ -808,11 +862,12 @@ void gpu::pushQuad(Vertex v1, Vertex v2, Vertex v3, Vertex v4)
 
 void gpu::pushRect(Rectangle r)
 {
-	// todo: texture coordinates should probably also be modified by the width and height
+	// for widths and heights greater that 255, textures should repeat
+	// right now, it's just being clamped
 	Vertex v1 = { r.position, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
-	Vertex v2 = { { r.position.x + r.widthHeight.width, r.position.y }, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
-	Vertex v3 = { { r.position.x, r.position.y + r.widthHeight.height }, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
-	Vertex v4 = { { r.position.x + r.widthHeight.width, r.position.y + r.widthHeight.height }, r.colour, { texPageXBase, texPageYBase }, r.texCoord, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
+	Vertex v2 = { { r.position.x + r.widthHeight.width, r.position.y }, r.colour, { texPageXBase, texPageYBase }, { (GLubyte)(r.texCoord.x + (GLubyte)(r.widthHeight.width)), r.texCoord.y }, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
+	Vertex v3 = { { r.position.x, r.position.y + r.widthHeight.height }, r.colour, { texPageXBase, texPageYBase }, { r.texCoord.x, (GLubyte)(r.texCoord.y + (GLubyte)r.widthHeight.height) }, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
+	Vertex v4 = { { r.position.x + r.widthHeight.width, r.position.y + r.widthHeight.height }, r.colour, { texPageXBase, texPageYBase }, { (GLubyte)(r.texCoord.x + (GLubyte)r.widthHeight.width), (GLubyte)(r.texCoord.y + (GLubyte)r.widthHeight.height) }, r.clut, TextureColourDepth::fromValue(texPageColourDepth), r.blendMode };
 	pushQuad(v1, v2, v3, v4);
 }
 

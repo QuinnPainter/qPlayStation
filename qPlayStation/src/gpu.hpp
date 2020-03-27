@@ -144,7 +144,8 @@ struct Rectangle
 	}
 };
 
-#define VERTEX_BUFFER_LEN 65536
+// was 65536, increased based on it overflowing in amidog cpu test
+#define VERTEX_BUFFER_LEN 131072
 template <class T> struct Buffer
 {
 	GLuint bufObject;
@@ -290,11 +291,13 @@ class gpu : public peripheral
 		// GP0 Render Commands
 		void gp0_nop();
 		void gp0_clearCache();
+		void gp0_fillRectVRAM();
 		void gp0_quad_mono_opaque();
 		void gp0_quad_texture_blend_opaque();
 		void gp0_tri_shaded_opaque();
 		void gp0_quad_shaded_opaque();
 		void gp0_rect_mono_1x1_opaque();
+		void gp0_rect_texture_blend_8x8_opaque();
 		void gp0_copyRectCPUtoVRAM();
 		void gp0_copyRectVRAMtoCPU();
 		void gp0_drawModeSetting();
