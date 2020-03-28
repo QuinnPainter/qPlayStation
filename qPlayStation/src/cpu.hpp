@@ -36,6 +36,7 @@ class cpu
 		cpu(memory* mem, EXEInfo exeI);
 		void reset();
 		void step();
+		void updateInterruptRequest(bool interruptRequest);
 	private:
 		EXEInfo exeInfo;
 		uint32_t pc;

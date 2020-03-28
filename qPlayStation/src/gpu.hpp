@@ -1,6 +1,7 @@
 #pragma once
 #include "helpers.hpp"
 #include "peripheral.hpp"
+#include "interrupt.hpp"
 
 enum class textureColourDepthValue : uint8_t
 {
@@ -208,7 +209,7 @@ struct gp0Instruction
 class gpu : public peripheral
 {
 	public:
-		gpu(SDL_Window* window);
+		gpu(SDL_Window* window, interruptController* i);
 		~gpu();
 		void reset();
 		void display();
@@ -219,6 +220,7 @@ class gpu : public peripheral
 		void set8(uint32_t addr, uint8_t value);
 		uint8_t get8(uint32_t addr);
 	private:
+		interruptController* InterruptController;
 		void vramSet16(uint32_t addr, uint16_t value);
 		uint16_t vramGet16(uint32_t addr);
 		uint8_t* vram;
@@ -292,6 +294,7 @@ class gpu : public peripheral
 		void gp0_nop();
 		void gp0_clearCache();
 		void gp0_fillRectVRAM();
+		void gp0_interruptRequest();
 		void gp0_quad_mono_opaque();
 		void gp0_quad_texture_blend_opaque();
 		void gp0_tri_shaded_opaque();

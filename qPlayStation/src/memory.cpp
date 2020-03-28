@@ -1,6 +1,6 @@
 #include "memory.hpp"
 
-memory::memory(bios* b, gpu* g)
+memory::memory(bios* b, gpu* g, interruptController* i)
 {
 	BIOS = b;
 	GPU = g;
@@ -8,6 +8,7 @@ memory::memory(bios* b, gpu* g)
 	Scratchpad = new scratchpad();
 	DMA = new dma(RAM, GPU);
 	TTY = new tty();
+	InterruptController = i;
 	pStub = new peripheralStub();
 }
 
@@ -94,9 +95,18 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 	}
 	else if (adjAddr >= 0x1F801000 && adjAddr < 0x1F803000) // IO / Expansion Area
 	{
-		if (adjAddr >= 0x1F801080 && adjAddr < 0x1F801100) // DMA Registers
+		if (adjAddr >= 0x1F801070 && adjAddr < 0x1F801078) // Interrupt Control
+		{
+			return {InterruptController, adjAddr - 0x1F801070};
+		}
+		else if (adjAddr >= 0x1F801080 && adjAddr < 0x1F801100) // DMA Registers
 		{
 			return {DMA, adjAddr - 0x1F801080};
+		}
+		else if (adjAddr >= 0x1F801800 && adjAddr < 0x1F801804) // CDROM Registers
+		{
+			logging::info("CDROM Access: " + helpers::intToHex(addr), logging::logSource::memory);
+			return {pStub, 0};
 		}
 		else if (adjAddr >= 0x1F801810 && adjAddr < 0x1F801818) // GPU Registers
 		{

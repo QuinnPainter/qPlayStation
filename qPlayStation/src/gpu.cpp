@@ -1,7 +1,8 @@
 #include "gpu.hpp"
 
-gpu::gpu(SDL_Window* window)
+gpu::gpu(SDL_Window* window, interruptController* i)
 {
+	InterruptController = i;
 	sdlWindow = window;
 	vram = new uint8_t[2048 * 512];
 	glBuffer = new uint8_t[2048 * 512];
@@ -104,7 +105,6 @@ void gpu::set32(uint32_t addr, uint32_t value)
 				}
 				case GP0Mode::CopyCPUtoVRAM:
 				{
-					// once vram exists, this should copy data into it
 					uint32_t destCoord = gp0commandBuffer[1];
 					uint16_t destX = destCoord & 0xFFFF;
 					uint16_t destY = destCoord >> 16;
@@ -244,6 +244,7 @@ gp0Instruction gpu::getGP0Instr(uint32_t value)
 		case 0x00: return { 1, &gpu::gp0_nop };
 		case 0x01: return { 1, &gpu::gp0_clearCache };
 		case 0x02: return { 3, &gpu::gp0_fillRectVRAM };
+		case 0x1F: return { 1, &gpu::gp0_interruptRequest };
 		case 0x28: return { 5, &gpu::gp0_quad_mono_opaque };
 		case 0x2C: return { 9, &gpu::gp0_quad_texture_blend_opaque };
 		case 0x30: return { 6, &gpu::gp0_tri_shaded_opaque };
@@ -456,6 +457,11 @@ void gpu::gp0_fillRectVRAM()
 			vram[(line * 2048) + (x * 2) + 1] = colour15 >> 8;
 		}
 	}
+}
+
+void gpu::gp0_interruptRequest()
+{
+	InterruptController->requestInterrupt(interruptType::GPU);
 }
 
 void gpu::gp0_quad_mono_opaque()
@@ -916,4 +922,6 @@ void gpu::display()
 	SDL_UpdateTexture(screenTexture, NULL, vram, 2048);
 	SDL_RenderCopy(sdlRenderer, screenTexture, NULL, NULL);
 	SDL_RenderPresent(sdlRenderer);
+
+	InterruptController->requestInterrupt(interruptType::VBLANK); // temporary
 }

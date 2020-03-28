@@ -21,7 +21,7 @@ void cpu::reset()
 	cop0_sr = 0;
 	cop0_cause = 0;
 	cop0_epc = 0;
-	currentLoad = {0, 0};
+	currentLoad = { 0, 0 };
 	is_branch = false;
 	delay_slot = false;
 }
@@ -35,6 +35,13 @@ void cpu::setReg(int index, uint32_t value)
 uint32_t cpu::getReg(int index)
 {
 	return in_regs[index];
+}
+
+void cpu::updateInterruptRequest(bool interruptRequest)
+{
+	// Set bit 10 of the cause register to interruptRequest
+	cop0_cause &= ~(1 << 10);
+	cop0_cause |= ((uint32_t)interruptRequest) << 10;
 }
 
 bool cpu::cacheIsolated()
@@ -72,7 +79,16 @@ void cpu::step()
 	delay_slot = is_branch;
 	is_branch = false;
 
-	executeInstr(instr);
+	// Check bit 10 of cause - interrupt request
+	// and bits 0 and 10 of sr - interrupt enable
+	if ((cop0_cause & (1 << 10)) && (cop0_sr & (1 << 10)) && (cop0_sr & 1))
+	{
+		exception(psException::Interrupt);
+	}
+	else
+	{
+		executeInstr(instr);
+	}
 
 	memcpy(in_regs, out_regs, sizeof(in_regs));
 }
@@ -171,20 +187,24 @@ void cpu::branch(uint32_t offset)
 void cpu::exception(psException exceptionType)
 {
 	// Exception handler address depends on the BEV bit in the Status Register
-	uint32_t handlerAddr = (cop0_sr & (1 << 22)) != 0 ? 0xBFC00180 : 0x80000080;
+	uint32_t handlerAddr = ((cop0_sr & (1 << 22)) != 0) ? 0xBFC00180 : 0x80000080;
 
 	uint32_t mode = cop0_sr & 0x3F;
 	cop0_sr &= ~0x3F;
 	cop0_sr |= (mode << 2) & 0x3F;
 
-	cop0_cause = static_cast<uint32_t>(exceptionType) << 2;
-
-	cop0_epc = current_pc;
+	cop0_cause &= ~0x7C;
+	cop0_cause |= ((uint32_t)exceptionType) << 2;
 
 	if (delay_slot)
 	{
-		cop0_epc -= 4;
+		cop0_epc = current_pc - 4;
 		cop0_cause |= 1 << 31;
+	}
+	else
+	{
+		cop0_epc = current_pc;
+		cop0_cause &= ~(1 << 31);
 	}
 
 	// skip branch delay
@@ -380,7 +400,6 @@ void cpu::op_cop0(uint32_t instr) // Coprocessor 0 Operation
 				default: logging::fatal("Read from unhandled COP0 register: " + std::to_string(decode_rd(instr)), logging::logSource::CPU); break;
 			}
 			currentLoad = {decode_rt(instr), outputValue};
-			//std::cout << "Read " << helpers::intToHex(outputValue) << " from COP0" << "\n";
 			break;
 		}
 		case 0b00100: // MTC - Move to Coprocessor
@@ -391,7 +410,6 @@ void cpu::op_cop0(uint32_t instr) // Coprocessor 0 Operation
 				case 12: cop0_sr = value; break;
 				default: logging::info("Write to unhandled COP0 register: " + std::to_string(decode_rd(instr)), logging::logSource::CPU); break;
 			}
-			//std::cout << "Write " << helpers::intToHex(value) << " to " << std::to_string(decode_rd(instr)) << "\n";
 			break;
 		}
 		case 0b10000: // Special COP0 commands

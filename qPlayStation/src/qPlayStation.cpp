@@ -34,8 +34,9 @@ int main(int argc, char* args[])
     initSDL();
 
     bios* BIOS = new bios(args[1]);
-    gpu* GPU = new gpu(window);
-    memory* Memory = new memory(BIOS, GPU);
+    interruptController* InterruptController = new interruptController();
+    gpu* GPU = new gpu(window, InterruptController);
+    memory* Memory = new memory(BIOS, GPU, InterruptController);
 
     if (exeInfo.present)
     {
@@ -82,6 +83,7 @@ int main(int argc, char* args[])
     }
 
     cpu* CPU = new cpu(Memory, exeInfo);
+    InterruptController->giveCpuRef(CPU);
 
     int exitCode = 0;
 
