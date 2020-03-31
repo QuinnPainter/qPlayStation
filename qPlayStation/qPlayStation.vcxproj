@@ -160,6 +160,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\bios.hpp" />
+    <ClInclude Include="src\cdrom.hpp" />
     <ClInclude Include="src\cpu.hpp" />
     <ClInclude Include="src\dma.hpp" />
     <ClInclude Include="src\gpu.hpp" />
@@ -173,6 +174,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\bios.cpp" />
+    <ClCompile Include="src\cdrom.cpp" />
     <ClCompile Include="src\cpu.cpp" />
     <ClCompile Include="src\dma.cpp" />
     <ClCompile Include="src\gpu.cpp" />

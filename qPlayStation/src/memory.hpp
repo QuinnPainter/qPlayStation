@@ -5,6 +5,7 @@
 #include "dma.hpp"
 #include "gpu.hpp"
 #include "interrupt.hpp"
+#include "cdrom.hpp"
 
 struct PeriphRequestInfo
 {
@@ -28,7 +29,7 @@ class tty : public peripheral
 class memory
 {
 	public:
-		memory(bios* b, gpu* g, interruptController* i);
+		memory(bios* b, gpu* g, interruptController* i, cdrom* c);
 		~memory();
 		void set32(uint32_t addr, uint32_t value);
 		uint32_t get32(uint32_t addr);
@@ -43,6 +44,7 @@ class memory
 		dma* DMA;
 		gpu* GPU;
 		tty* TTY;
+		cdrom* CDROM;
 		interruptController* InterruptController;
 		peripheralStub* pStub;
 		PeriphRequestInfo getPeriphAtAddress(uint32_t addr);

@@ -1,9 +1,10 @@
 #include "memory.hpp"
 
-memory::memory(bios* b, gpu* g, interruptController* i)
+memory::memory(bios* b, gpu* g, interruptController* i, cdrom* c)
 {
 	BIOS = b;
 	GPU = g;
+	CDROM = c;
 	RAM = new ram();
 	Scratchpad = new scratchpad();
 	DMA = new dma(RAM, GPU);
@@ -81,9 +82,9 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 {
 	uint8_t segment = addr >> 29; //000 = KUSEG, 100 = KSEG0, 101 = KSEG1, 111 = KSEG2
 	uint32_t adjAddr = addr & 0x1FFFFFFF;
-	if (adjAddr < 0x200000) // Main RAM
+	if (adjAddr < 0x800000) // Main RAM + mirrors
 	{
-		return {RAM, adjAddr};
+		return {RAM, adjAddr % 0x200000};
 	}
 	else if (adjAddr >= 0x1F000000 && adjAddr < 0x1F800000) // Expansion 1
 	{
@@ -95,7 +96,17 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 	}
 	else if (adjAddr >= 0x1F801000 && adjAddr < 0x1F803000) // IO / Expansion Area
 	{
-		if (adjAddr >= 0x1F801070 && adjAddr < 0x1F801078) // Interrupt Control
+		if (adjAddr >= 0x1F801040 && adjAddr < 0x1F801050) // Joypad / Memory Card
+		{
+			//logging::info("Joypad Access: " + helpers::intToHex(addr), logging::logSource::memory);
+			return {pStub, 0};
+		}
+		else if (adjAddr >= 0x1F801050 && adjAddr < 0x1F801060) // Serial Port
+		{
+			logging::info("Serial Access: " + helpers::intToHex(addr), logging::logSource::memory);
+			return {pStub, 0};
+		}
+		else if (adjAddr >= 0x1F801070 && adjAddr < 0x1F801078) // Interrupt Control
 		{
 			return {InterruptController, adjAddr - 0x1F801070};
 		}
@@ -103,14 +114,23 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 		{
 			return {DMA, adjAddr - 0x1F801080};
 		}
+		else if (adjAddr >= 0x1F801100 && adjAddr < 0x1F801130) // Timers
+		{
+			//logging::info("Timer Access: " + helpers::intToHex(addr), logging::logSource::memory);
+			return {pStub, 0};
+		}
 		else if (adjAddr >= 0x1F801800 && adjAddr < 0x1F801804) // CDROM Registers
 		{
-			logging::info("CDROM Access: " + helpers::intToHex(addr), logging::logSource::memory);
-			return {pStub, 0};
+			return {CDROM, adjAddr - 0x1F801800};
 		}
 		else if (adjAddr >= 0x1F801810 && adjAddr < 0x1F801818) // GPU Registers
 		{
 			return {GPU, adjAddr - 0x1F801810};
+		}
+		else if (adjAddr >= 0x1F801820 && adjAddr < 0x1F801828) // MDEC Registers
+		{
+			logging::info("MDEC Access: " + helpers::intToHex(addr), logging::logSource::memory);
+			return {pStub, 0};
 		}
 		else if (adjAddr >= 0x1F802020 && adjAddr < 0x1F802030) // DUART
 		{
@@ -122,14 +142,14 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 			return {pStub, 0};
 		}
 	}
+	else if (adjAddr >= 0x1FC00000 && adjAddr < 0x1FC80000) // BIOS
+	{
+		return {BIOS, adjAddr - 0x1FC00000};
+	}
 	else if (addr == 0xFFFE0130) // Cache Control
 	{
 		logging::info("Cache Control Access", logging::logSource::memory);
 		return {pStub, 0};
-	}
-	else if (adjAddr >= 0x1FC00000 && adjAddr < 0x1FC00000 + 524288) // BIOS
-	{
-		return {BIOS, adjAddr - 0x1FC00000};
 	}
 	else
 	{

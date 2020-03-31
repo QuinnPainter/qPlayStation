@@ -35,8 +35,9 @@ int main(int argc, char* args[])
 
     bios* BIOS = new bios(args[1]);
     interruptController* InterruptController = new interruptController();
+    cdrom* CDROM = new cdrom(InterruptController);
     gpu* GPU = new gpu(window, InterruptController);
-    memory* Memory = new memory(BIOS, GPU, InterruptController);
+    memory* Memory = new memory(BIOS, GPU, InterruptController, CDROM);
 
     if (exeInfo.present)
     {
@@ -119,6 +120,7 @@ int main(int argc, char* args[])
     }
 
     delete(BIOS);
+    delete(CDROM);
     delete(GPU);
     delete(Memory);
     delete(CPU);
