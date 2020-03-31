@@ -4,7 +4,13 @@ cpu::cpu(memory* mem, EXEInfo exeI)
 {
 	Memory = mem;
 	exeInfo = exeI;
+	GTE = new gte();
 	reset();
+}
+
+cpu::~cpu()
+{
+	delete(GTE);
 }
 
 void cpu::reset()
@@ -24,6 +30,8 @@ void cpu::reset()
 	currentLoad = { 0, 0 };
 	is_branch = false;
 	delay_slot = false;
+
+	GTE->reset();
 }
 
 void cpu::setReg(int index, uint32_t value)
@@ -437,7 +445,53 @@ void cpu::op_cop1(uint32_t instr) // Coprocessor 1 Operation
 
 void cpu::op_cop2(uint32_t instr) // Coprocessor 2 Operation (GTE)
 {
-	logging::fatal("Unhandled GTE command: " + helpers::intToHex(instr), logging::logSource::CPU);
+	uint8_t subop = decode_rs(instr);
+	uint8_t rt = decode_rt(instr);
+	uint8_t rd = decode_rd(instr);
+	uint32_t val = getReg(rt);
+
+	if (!(cop0_sr & (1 << 30))) // GTE is disabled
+	{
+		exception(psException::CoprocessorUnusable);
+	}
+	else
+	{
+		switch (subop)
+		{
+			case 0x00: // MFC - Move from Coprocessor
+			{
+				currentLoad = {rt, GTE->readDR(rd)};
+				break;
+			}
+			case 0x04: // MTC - Move to Coprocessor
+			{
+				GTE->writeDR(rd, val);
+				break;
+			}
+			case 0x02: // CFC - Move Control from Coprocessor
+			{
+				currentLoad = {rt, GTE->readCR(rd)};
+				break;
+			}
+			case 0x06: // CTC - Move Control to Coprocessor
+			{
+				GTE->writeCR(rd, val);
+				break;
+			}
+			case 0x08: case 0x0C: // Some sort of branch
+			{
+				logging::fatal("Unhandled GTE branch instruction: " + helpers::intToHex(instr), logging::logSource::CPU);
+				break;
+			}
+			case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
+			case 0x18: case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: case 0x1F:
+			{
+				GTE->instruction(instr);
+				break;
+			}
+			default: logging::fatal("Invalid GTE command: " + helpers::intToHex(instr), logging::logSource::CPU); break;
+		}
+	}
 }
 
 void cpu::op_cop3(uint32_t instr) // Coprocessor 3 Operation
@@ -457,7 +511,15 @@ void cpu::op_lwc1(uint32_t instr) // Load Word Coprocessor 1
 
 void cpu::op_lwc2(uint32_t instr) // Load Word Coprocessor 2 (GTE)
 {
-	logging::fatal("Unhandled GTE load: " + helpers::intToHex(instr), logging::logSource::CPU);
+	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
+	if (addr & 0x3)
+	{
+		exception(psException::AddrErrorLoad);
+	}
+	else
+	{
+		GTE->writeDR(decode_rt(instr), Memory->get32(addr));
+	}
 }
 
 void cpu::op_lwc3(uint32_t instr) // Load Word Coprocessor 3
@@ -477,7 +539,15 @@ void cpu::op_swc1(uint32_t instr) // Store Word Coprocessor 1
 
 void cpu::op_swc2(uint32_t instr) // Store Word Coprocessor 2 (GTE)
 {
-	logging::fatal("Unhandled GTE store: " + helpers::intToHex(instr), logging::logSource::CPU);
+	uint32_t addr = getReg(decode_rs(instr)) + decode_imm_se(instr);
+	if (addr & 0x3)
+	{
+		exception(psException::AddrErrorStore);
+	}
+	else
+	{
+		Memory->set32(addr, GTE->readDR(decode_rt(instr)));
+	}
 }
 
 void cpu::op_swc3(uint32_t instr) // Store Word Coprocessor 3

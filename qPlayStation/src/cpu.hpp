@@ -1,6 +1,7 @@
 #pragma once
 #include "helpers.hpp"
 #include "memory.hpp"
+#include "gte.hpp"
 
 struct EXEInfo
 {
@@ -34,10 +35,13 @@ class cpu
 {
 	public:
 		cpu(memory* mem, EXEInfo exeI);
+		~cpu();
 		void reset();
 		void step();
 		void updateInterruptRequest(bool interruptRequest);
 	private:
+		gte* GTE;
+		memory* Memory;
 		EXEInfo exeInfo;
 		uint32_t pc;
 		uint32_t in_regs[32];
@@ -53,7 +57,6 @@ class cpu
 		uint32_t cop0_cause;
 		uint32_t cop0_epc;
 		bool cacheIsolated();
-		memory* Memory = nullptr;
 		void executeInstr(uint32_t instr);
 		void setReg(int index, uint32_t value);
 		uint32_t getReg(int index);

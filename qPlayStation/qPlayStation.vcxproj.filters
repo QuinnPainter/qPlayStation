@@ -51,6 +51,9 @@
     <ClInclude Include="src\cdrom.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\gte.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\qPlayStation.cpp">
@@ -81,6 +84,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\cdrom.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gte.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

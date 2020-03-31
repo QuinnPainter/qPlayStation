@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-const std::string sourceNames[] = { "qPlayStation", "CPU", "Memory", "BIOS", "DMA", "GPU", "CDROM", "TTY", "?" };
+const std::string sourceNames[] = { "qPlayStation", "CPU", "Memory", "BIOS", "DMA", "GPU", "CDROM", "GTE", "TTY", "?" };
 
 class logging
 {
@@ -15,6 +15,7 @@ class logging
             DMA,
             GPU,
             CDROM,
+            GTE,
             TTY,
             unknown
         };
