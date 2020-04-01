@@ -1355,3 +1355,10 @@ int32_t gte::instruction(uint32_t instr)
 
     return(ret - 1);
 }
+
+#undef IR0
+#undef IR1
+#undef IR2
+#undef IR3
+#undef sign_x_to_s64
+#undef DECODE_FIELDS

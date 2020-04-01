@@ -6,6 +6,7 @@
 #include "gpu.hpp"
 #include "interrupt.hpp"
 #include "cdrom.hpp"
+#include "joypad.hpp"
 
 struct PeriphRequestInfo
 {
@@ -29,7 +30,7 @@ class tty : public peripheral
 class memory
 {
 	public:
-		memory(bios* b, gpu* g, interruptController* i, cdrom* c);
+		memory(bios* b, gpu* g, interruptController* i, cdrom* c, joypad* j);
 		~memory();
 		void set32(uint32_t addr, uint32_t value);
 		uint32_t get32(uint32_t addr);
@@ -45,6 +46,7 @@ class memory
 		gpu* GPU;
 		tty* TTY;
 		cdrom* CDROM;
+		joypad* Joypad;
 		interruptController* InterruptController;
 		peripheralStub* pStub;
 		PeriphRequestInfo getPeriphAtAddress(uint32_t addr);

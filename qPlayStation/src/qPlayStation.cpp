@@ -35,9 +35,10 @@ int main(int argc, char* args[])
 
     bios* BIOS = new bios(args[1]);
     interruptController* InterruptController = new interruptController();
+    joypad* Joypad = new joypad(InterruptController);
     cdrom* CDROM = new cdrom(InterruptController);
     gpu* GPU = new gpu(window, InterruptController);
-    memory* Memory = new memory(BIOS, GPU, InterruptController, CDROM);
+    memory* Memory = new memory(BIOS, GPU, InterruptController, CDROM, Joypad);
 
     if (exeInfo.present)
     {
@@ -99,6 +100,16 @@ int main(int argc, char* args[])
                 switch (event.type)
                 {
                     case SDL_QUIT: running = false; break;
+                    case SDL_KEYDOWN:
+                    {
+                        Joypad->keyChanged(event.key.keysym.sym, true);
+                        break;
+                    }
+                    case SDL_KEYUP:
+                    {
+                        Joypad->keyChanged(event.key.keysym.sym, false);
+                        break;
+                    }
                 }
             }
 
@@ -120,6 +131,7 @@ int main(int argc, char* args[])
     }
 
     delete(BIOS);
+    delete(Joypad);
     delete(CDROM);
     delete(GPU);
     delete(Memory);

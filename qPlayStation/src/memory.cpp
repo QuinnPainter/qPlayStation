@@ -1,6 +1,6 @@
 #include "memory.hpp"
 
-memory::memory(bios* b, gpu* g, interruptController* i, cdrom* c)
+memory::memory(bios* b, gpu* g, interruptController* i, cdrom* c, joypad* j)
 {
 	BIOS = b;
 	GPU = g;
@@ -10,6 +10,7 @@ memory::memory(bios* b, gpu* g, interruptController* i, cdrom* c)
 	DMA = new dma(RAM, GPU);
 	TTY = new tty();
 	InterruptController = i;
+	Joypad = j;
 	pStub = new peripheralStub();
 }
 
@@ -98,8 +99,7 @@ PeriphRequestInfo memory::getPeriphAtAddress(uint32_t addr)
 	{
 		if (adjAddr >= 0x1F801040 && adjAddr < 0x1F801050) // Joypad / Memory Card
 		{
-			//logging::info("Joypad Access: " + helpers::intToHex(addr), logging::logSource::memory);
-			return {pStub, 0};
+			return {Joypad, adjAddr - 0x1F801040};
 		}
 		else if (adjAddr >= 0x1F801050 && adjAddr < 0x1F801060) // Serial Port
 		{

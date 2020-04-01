@@ -6,3 +6,4 @@
 #include "gpu.hpp"
 #include "interrupt.hpp"
 #include "cdrom.hpp"
+#include "joypad.hpp"

@@ -190,7 +190,7 @@ void dma::doDMA(uint8_t port)
 				uint32_t srcWord = RAM->get32(adjAddr);
 				switch (port)
 				{
-					case static_cast<uint8_t>(dmaPort::GPU):
+					case (uint8_t)dmaPort::GPU:
 					{
 						GPU->set32(0, srcWord);
 						break;
@@ -203,9 +203,14 @@ void dma::doDMA(uint8_t port)
 				uint32_t srcWord = 0;
 				switch (port)
 				{
-					case static_cast<uint8_t>(dmaPort::OTC):
+					case (uint8_t)dmaPort::OTC:
 					{
 						srcWord = (wordsToTransfer == 1) ? 0xFFFFFF : (currentAddr - 4) & 0x1FFFFF;
+						break;
+					}
+					case (uint8_t)dmaPort::GPU:
+					{
+						srcWord = GPU->get32(0);
 						break;
 					}
 					default: logging::fatal("unhandled DMA (device to RAM) port: " + std::to_string(port), logging::logSource::DMA);

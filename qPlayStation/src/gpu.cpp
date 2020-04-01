@@ -139,6 +139,11 @@ void gpu::set32(uint32_t addr, uint32_t value)
 					}
 					break;
 				}
+				case GP0Mode::CopyVRAMtoCPU:
+				{
+					// Should commands be ignored during a VRAM to CPU transfer? hmm...
+					break;
+				}
 			}
 			break;
 		}
@@ -171,7 +176,49 @@ uint32_t gpu::get32(uint32_t addr)
 	{
 		case 0: // GPUREAD - for reading back info from the GPU to the CPU
 		{
-			return gpuReadLatch;
+			if (gp0Mode != GP0Mode::CopyVRAMtoCPU)
+			{
+				return gpuReadLatch;
+			}
+			else
+			{
+				gp0remainingCommands--; // just use gp0remainingCommands for the remaining words to transfer
+
+				uint32_t srcCoord = gp0commandBuffer[1];
+				uint16_t srcX = srcCoord & 0xFFFF;
+				uint16_t srcY = srcCoord >> 16;
+				uint32_t widthheight = gp0commandBuffer[2];
+				uint16_t width = widthheight & 0xFFFF;
+				uint16_t height = widthheight >> 16;
+
+				uint32_t srcAddr = (vramTransferCurrentY * 2048) + (vramTransferCurrentX * 2);
+				uint16_t ret = vramGet16(srcAddr);
+				vramTransferCurrentX++;
+				if (vramTransferCurrentX >= ((uint32_t)srcX) + width)
+				{
+					vramTransferCurrentX = srcX;
+					vramTransferCurrentY++;
+				}
+
+				if (!((((widthheight & 0xFFFF) * (widthheight >> 16)) & 1) && gp0remainingCommands == 0))
+				{
+					srcAddr = (vramTransferCurrentY * 2048) + (vramTransferCurrentX * 2);
+					ret |= (vramGet16(srcAddr) << 16);
+					vramTransferCurrentX++;
+					if (vramTransferCurrentX >= ((uint32_t)srcX) + width)
+					{
+						vramTransferCurrentX = srcX;
+						vramTransferCurrentY++;
+					}
+				}
+
+				if (gp0remainingCommands == 0)
+				{
+					gp0Mode = GP0Mode::Command;
+				}
+
+				return ret;
+			}
 		}
 		case 4: // GPUSTAT - GPU status register
 		{
@@ -534,7 +581,18 @@ void gpu::gp0_copyRectCPUtoVRAM()
 
 void gpu::gp0_copyRectVRAMtoCPU()
 {
-	// todo
+	uint32_t srcCoord = gp0commandBuffer[1];
+	uint16_t srcX = srcCoord & 0xFFFF;
+	uint16_t srcY = srcCoord >> 16;
+	uint32_t widthheight = gp0commandBuffer[2];
+	uint32_t rectSize = (widthheight & 0xFFFF) * (widthheight >> 16);
+
+	vramTransferCurrentX = srcX;
+	vramTransferCurrentY = srcY;
+
+	// Pixels are 16 bits, so account for the padding at the end if there's an odd number
+	gp0remainingCommands = ((rectSize + 1) & ~1) / 2;
+	gp0Mode = GP0Mode::CopyVRAMtoCPU;
 }
 
 void gpu::gp0_drawModeSetting()

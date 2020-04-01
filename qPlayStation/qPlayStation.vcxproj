@@ -167,6 +167,7 @@
     <ClInclude Include="src\gte.hpp" />
     <ClInclude Include="src\helpers.hpp" />
     <ClInclude Include="src\interrupt.hpp" />
+    <ClInclude Include="src\joypad.hpp" />
     <ClInclude Include="src\logging.hpp" />
     <ClInclude Include="src\memory.hpp" />
     <ClInclude Include="src\peripheral.hpp" />
@@ -181,6 +182,7 @@
     <ClCompile Include="src\gpu.cpp" />
     <ClCompile Include="src\gte.cpp" />
     <ClCompile Include="src\interrupt.cpp" />
+    <ClCompile Include="src\joypad.cpp" />
     <ClCompile Include="src\logging.cpp" />
     <ClCompile Include="src\memory.cpp" />
     <ClCompile Include="src\qPlayStation.cpp" />

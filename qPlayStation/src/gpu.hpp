@@ -195,7 +195,8 @@ enum class dmaDirection : uint8_t
 enum class GP0Mode
 {
 	Command,
-	CopyCPUtoVRAM
+	CopyCPUtoVRAM,
+	CopyVRAMtoCPU
 };
 
 class gpu;
