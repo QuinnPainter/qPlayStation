@@ -300,6 +300,7 @@ class gpu : public peripheral
 		void gp0_quad_texture_blend_opaque();
 		void gp0_tri_shaded_opaque();
 		void gp0_quad_shaded_opaque();
+		void gp0_quad_shaded_texture_blend_opaque();
 		void gp0_rect_mono_1x1_opaque();
 		void gp0_rect_texture_blend_8x8_opaque();
 		void gp0_copyRectCPUtoVRAM();

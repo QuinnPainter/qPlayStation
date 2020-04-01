@@ -296,6 +296,7 @@ gp0Instruction gpu::getGP0Instr(uint32_t value)
 		case 0x2C: return { 9, &gpu::gp0_quad_texture_blend_opaque };
 		case 0x30: return { 6, &gpu::gp0_tri_shaded_opaque };
 		case 0x38: return { 8, &gpu::gp0_quad_shaded_opaque };
+		case 0x3C: return { 12, &gpu::gp0_quad_shaded_texture_blend_opaque };
 		case 0x68: return { 2, &gpu::gp0_rect_mono_1x1_opaque };
 		case 0x74: return { 3, &gpu::gp0_rect_texture_blend_8x8_opaque };
 		case 0xA0: return { 3, &gpu::gp0_copyRectCPUtoVRAM };
@@ -546,6 +547,18 @@ void gpu::gp0_quad_shaded_opaque()
 		{ Position::fromGP0(gp0commandBuffer[3]), Colour::fromGP0(gp0commandBuffer[2]) },
 		{ Position::fromGP0(gp0commandBuffer[5]), Colour::fromGP0(gp0commandBuffer[4]) },
 		{ Position::fromGP0(gp0commandBuffer[7]), Colour::fromGP0(gp0commandBuffer[6]) });
+}
+
+void gpu::gp0_quad_shaded_texture_blend_opaque()
+{
+	ClutAttr clut = ClutAttr::fromGP0(gp0commandBuffer[2]);
+	TexPage texPage = TexPage::fromGP0(gp0commandBuffer[5]);
+	TextureColourDepth texDepth = TextureColourDepth::fromGP0(gp0commandBuffer[5]);
+	GLubyte blend = (GLubyte)BlendMode::BlendTexture;
+	pushQuad({ Position::fromGP0(gp0commandBuffer[1]), Colour::fromGP0(gp0commandBuffer[0]), texPage, TexCoord::fromGP0(gp0commandBuffer[2]), clut, texDepth, blend },
+		{ Position::fromGP0(gp0commandBuffer[4]), Colour::fromGP0(gp0commandBuffer[3]), texPage, TexCoord::fromGP0(gp0commandBuffer[5]), clut, texDepth, blend },
+		{ Position::fromGP0(gp0commandBuffer[7]), Colour::fromGP0(gp0commandBuffer[6]), texPage, TexCoord::fromGP0(gp0commandBuffer[8]), clut, texDepth, blend },
+		{ Position::fromGP0(gp0commandBuffer[10]), Colour::fromGP0(gp0commandBuffer[9]), texPage, TexCoord::fromGP0(gp0commandBuffer[11]), clut, texDepth, blend });
 }
 
 void gpu::gp0_rect_mono_1x1_opaque()
