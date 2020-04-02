@@ -119,7 +119,7 @@ struct RectWidthHeight
 	GLshort width;
 	GLshort height;
 
-	static Position fromGP0(uint32_t value)
+	static RectWidthHeight fromGP0(uint32_t value)
 	{
 		return { (GLshort)(value & 0xFFFF), (GLshort)(value >> 16) };
 	}
@@ -301,6 +301,8 @@ class gpu : public peripheral
 		void gp0_tri_shaded_opaque();
 		void gp0_quad_shaded_opaque();
 		void gp0_quad_shaded_texture_blend_opaque();
+		void gp0_rect_mono_opaque();
+		void gp0_rect_texture_blend_opaque();
 		void gp0_rect_mono_1x1_opaque();
 		void gp0_rect_texture_blend_8x8_opaque();
 		void gp0_copyRectCPUtoVRAM();
